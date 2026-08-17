@@ -1,58 +1,69 @@
 ---
-name: Postgres Next.js Starter
-slug: postgres-starter
-description: Simple Next.js template that uses a Postgres database.
+name: Backer Sonar
+slug: backer-sonar
+description: Historical Kickstarter research for evidence-based product investigation.
 framework: Next.js
-useCase: Starter
+useCase: Internal Tool
 css: Tailwind
 database: Postgres
-deployUrl: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fstorage%2Fpostgres-starter&project-name=postgres-starter&repository-name=postgres-starter&demo-title=Vercel%20Postgres%20Next.js%20Starter&demo-description=Simple%20Next.js%20template%20that%20uses%20Vercel%20Postgres%20as%20the%20database.&demo-url=https%3A%2F%2Fpostgres-starter.vercel.app%2F&demo-image=https%3A%2F%2Fpostgres-starter.vercel.app%2Fopengraph-image.png&products=%5B%7B%22type%22%3A%22integration%22%2C%22group%22%3A%22postgres%22%7D%5D
-demoUrl: https://postgres-starter.vercel.app/
 relatedTemplates:
   - postgres-prisma
   - postgres-kysely
   - postgres-sveltekit
 ---
 
-# Postgres Next.js Starter
+# Backer Sonar
 
-Simple Next.js template that uses a Postgres database.
+Backer Sonar is a Next.js + Neon proof of concept for researching
+historical Kickstarter campaigns and evaluating product opportunities
+using evidence rather than intuition alone.
 
-## Demo
+## Current Scope
 
-https://postgres-starter.vercel.app/
+The current proof of concept focuses on:
 
-## How to Use
+- D&D / 5E / TTRPG Kickstarter campaigns
+- historical research and opportunity evaluation
+- category-agnostic data modeling for later expansion
 
-You can choose from one of the following two methods to use this repository:
+The long-term system is intended to support all Kickstarter categories,
+but the initial product validation work is intentionally narrower.
 
-### One-Click Deploy
+## Local Development
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fstorage%2Fpostgres-starter&project-name=postgres-starter&repository-name=postgres-starter&demo-title=Vercel%20Postgres%20Next.js%20Starter&demo-description=Simple%20Next.js%20template%20that%20uses%20Vercel%20Postgres%20as%20the%20database.&demo-url=https%3A%2F%2Fpostgres-starter.vercel.app%2F&demo-image=https%3A%2F%2Fpostgres-starter.vercel.app%2Fopengraph-image.png&products=%5B%7B%22type%22%3A%22integration%22%2C%22group%22%3A%22postgres%22%7D%5D)
-
-### Clone and Deploy
-
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [pnpm](https://pnpm.io/installation) to bootstrap the example:
-
-```bash
-pnpm create next-app --example https://github.com/vercel/examples/tree/main/storage/postgres-starter
-```
-
-Once that's done, copy the .env.example file in this directory to .env.local (which will be ignored by Git):
+Copy `.env.example` to `.env.local` and set the Neon connection values:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Then open `.env.local` and set the environment variables to match the ones in your Vercel Storage Dashboard.
-
-Next, run Next.js in development mode:
+Run the development server:
 
 ```bash
 pnpm dev
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples) ([Documentation](https://nextjs.org/docs/deployment)).
-# buildproof
+Bootstrap the core schema:
+
+```bash
+pnpm db:bootstrap
+```
+
+Import the TTRPG proof-of-concept subset:
+
+```bash
+pnpm db:import:ttrpg
+```
+
+Check database status:
+
+```bash
+pnpm db:status
+```
+
+## Notes
+
+- The app is being developed locally first.
+- User auth and admin auth are still TODO items.
+- The current Neon database is intentionally scoped to the TTRPG proof
+  of concept subset.

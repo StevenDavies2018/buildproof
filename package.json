@@ -1,0 +1,37 @@
+{
+  "name": "backer-sonar",
+  "repository": "https://github.com/vercel/examples.git",
+  "license": "MIT",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "db:bootstrap": "node ./scripts/bootstrap-core-schema.mjs",
+    "db:import": "node ./scripts/import-kickstarter-snapshot.mjs",
+    "db:import:ttrpg": "node ./scripts/import-kickstarter-snapshot.mjs --file ../DataSet/Kickstarter_2026-08-12T08_12_02_805Z_deduped_ttrpg_subset.json --source-name \"Web Robots Kickstarter Dataset\" --snapshot-version 2026-08-12 --subset-key ttrpg_poc --subset-version 2026-08-16-initial --subset-status include_medium --subset-confidence include_medium --subset-reason \"Initial broad TTRPG/D&D subset import for Backer Sonar POC\"",
+    "db:prune:ttrpg": "node ./scripts/prune-to-subset.mjs --subset-key ttrpg_poc",
+    "db:status": "node ./scripts/db-status.mjs",
+    "db:seed:taxonomy": "node ./scripts/seed-ttrpg-taxonomy.mjs",
+    "db:classify:ttrpg": "node ./scripts/classify-ttrpg-campaigns.mjs --subset-key ttrpg_poc",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@types/ms": "^0.7.32",
+    "@types/node": "20.8.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "10.4.16",
+    "eslint": "^8",
+    "eslint-config-next": "^15.1.6",
+    "ms": "^2.1.3",
+    "next": "^16.0.10",
+    "postcss": "8.4.31",
+    "postgres": "^3.4.5",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tailwindcss": "3.3.3",
+    "typescript": "^5"
+  }
+}

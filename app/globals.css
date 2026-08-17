@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 30, 58, 138;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 233, 238, 246;
+  --bs-primary: #1e40af;
+  --bs-secondary: #3b82f6;
+  --bs-accent: #d97706;
+  --bs-background: #f8fafc;
+  --bs-foreground: #1e3a8a;
+  --bs-muted: #e9eef6;
+  --bs-border: #dbeafe;
+  --bs-panel: rgba(255, 255, 255, 0.92);
+  --bs-panel-alt: #f6f9ff;
+}
+
+html {
+  background: var(--bs-background);
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background:
+    radial-gradient(circle at top, rgba(217, 119, 6, 0.14), transparent 24%),
+    linear-gradient(180deg, rgb(var(--background-start-rgb)) 0%, rgb(var(--background-end-rgb)) 100%);
+  font-family: var(--font-sans), sans-serif;
+}
+
+@layer components {
+  .bs-shell {
+    @apply min-h-screen px-6 py-10 md:px-10 lg:px-14;
+    color: var(--bs-foreground);
+  }
+
+  .bs-container {
+    @apply mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-8;
+  }
+
+  .bs-panel {
+    @apply rounded-[2rem] border border-bs-border bg-[color:var(--bs-panel)] p-8 shadow-[0_16px_40px_rgba(30,64,175,0.08)] backdrop-blur md:p-10;
+  }
+
+  .bs-panel-subtle {
+    @apply rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-5;
+  }
+
+  .bs-kicker {
+    @apply text-xs font-semibold uppercase tracking-[0.24em];
+    color: rgb(30 64 175 / 70%);
+  }
+
+  .bs-title {
+    @apply font-mono tracking-tight text-slate-950;
+  }
+
+  .bs-copy {
+    @apply text-sm leading-7 text-slate-600 md:text-base;
+  }
+
+  .bs-metric-card {
+    @apply rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)];
+  }
+
+  .bs-metric-card-accent {
+    @apply border-amber-200 bg-amber-50 text-amber-950;
+  }
+
+  .bs-toolbar {
+    @apply rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-5;
+  }
+
+  .bs-field {
+    @apply w-full min-w-0 rounded-xl border border-bs-border bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2;
+    &:focus {
+      border-color: var(--bs-primary);
+      --tw-ring-color: rgb(30 64 175 / 15%);
+    }
+  }
+
+  .bs-button-primary {
+    @apply rounded-full px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800 focus:outline-none focus:ring-2;
+    background-color: #000000;
+    &:focus {
+      --tw-ring-color: rgb(0 0 0 / 18%);
+    }
+  }
+
+  .bs-button-secondary {
+    @apply rounded-full border border-bs-border bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-bs-primary hover:text-slate-950;
+  }
+
+  .bs-data-chip {
+    @apply rounded-full px-3 py-1 text-xs font-semibold;
+  }
+}
