@@ -12,9 +12,11 @@ export type SchemaSummary = {
   datasetImports: number
   campaignsRaw: number
   campaignsNormalized: number
+  campaignCurrencyNormalizations: number
   subsetMemberships: number
   taxonomyNodes: number
   campaignClassifications: number
+  analysisCategoryMetrics: number
 }
 
 export async function getSchemaStatus(): Promise<{
@@ -63,35 +65,43 @@ export async function getSchemaStatus(): Promise<{
         dataset_imports: number
         campaigns_raw: number
         campaigns_normalized: number
+        campaign_currency_normalizations: number
         subset_memberships: number
         taxonomy_nodes: number
         campaign_classifications: number
+        analysis_category_metrics: number
       }[]>`
         SELECT
           (SELECT COUNT(*)::int FROM dataset_imports) AS dataset_imports,
           (SELECT COUNT(*)::int FROM campaigns_raw) AS campaigns_raw,
           (SELECT COUNT(*)::int FROM campaigns_normalized) AS campaigns_normalized,
+          (SELECT COUNT(*)::int FROM campaign_currency_normalizations) AS campaign_currency_normalizations,
           (SELECT COUNT(*)::int FROM subset_memberships) AS subset_memberships,
           (SELECT COUNT(*)::int FROM taxonomy_nodes) AS taxonomy_nodes,
           (SELECT COUNT(*)::int FROM campaign_classifications) AS campaign_classifications
+          ,(SELECT COUNT(*)::int FROM analysis_category_metrics) AS analysis_category_metrics
       `
 
       summary = {
         datasetImports: counts.dataset_imports,
         campaignsRaw: counts.campaigns_raw,
         campaignsNormalized: counts.campaigns_normalized,
+        campaignCurrencyNormalizations: counts.campaign_currency_normalizations,
         subsetMemberships: counts.subset_memberships,
         taxonomyNodes: counts.taxonomy_nodes,
         campaignClassifications: counts.campaign_classifications,
+        analysisCategoryMetrics: counts.analysis_category_metrics,
       }
 
       const countsByTable = {
         dataset_imports: counts.dataset_imports,
         campaigns_raw: counts.campaigns_raw,
         campaigns_normalized: counts.campaigns_normalized,
+        campaign_currency_normalizations: counts.campaign_currency_normalizations,
         subset_memberships: counts.subset_memberships,
         taxonomy_nodes: counts.taxonomy_nodes,
         campaign_classifications: counts.campaign_classifications,
+        analysis_category_metrics: counts.analysis_category_metrics,
       }
 
       for (const table of tables) {

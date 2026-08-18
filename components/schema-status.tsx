@@ -92,7 +92,7 @@ export default async function SchemaStatus() {
               {status.configured ? 'Yes' : 'No'}
             </span>
           </p>
-          <p className="mt-2 text-sm text-blue-100/70">
+          <p className="mt-2 text-sm text-white/80">
             When `POSTGRES_URL` is connected, we can bootstrap and verify the
             Neon schema from the app workflow.
           </p>
@@ -103,7 +103,7 @@ export default async function SchemaStatus() {
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100/65">
               Current Counts
             </p>
-            <div className="mt-4 grid gap-3 text-sm text-white/90">
+            <div className="mt-4 grid gap-3 text-sm text-white">
               <p>
                 Dataset imports:{' '}
                 <span className="font-semibold">
@@ -123,6 +123,12 @@ export default async function SchemaStatus() {
                 </span>
               </p>
               <p>
+                Currency normalizations:{' '}
+                <span className="font-semibold">
+                  {status.summary.campaignCurrencyNormalizations}
+                </span>
+              </p>
+              <p>
                 Subset memberships:{' '}
                 <span className="font-semibold">
                   {status.summary.subsetMemberships}
@@ -138,6 +144,12 @@ export default async function SchemaStatus() {
                 Campaign classifications:{' '}
                 <span className="font-semibold">
                   {status.summary.campaignClassifications}
+                </span>
+              </p>
+              <p>
+                Analysis metrics:{' '}
+                <span className="font-semibold">
+                  {status.summary.analysisCategoryMetrics}
                 </span>
               </p>
             </div>

@@ -43,9 +43,11 @@ async function main() {
         (SELECT COUNT(*)::int FROM dataset_imports) AS dataset_imports,
         (SELECT COUNT(*)::int FROM campaigns_raw) AS campaigns_raw,
         (SELECT COUNT(*)::int FROM campaigns_normalized) AS campaigns_normalized,
+        (SELECT COUNT(*)::int FROM campaign_currency_normalizations) AS campaign_currency_normalizations,
         (SELECT COUNT(*)::int FROM subset_memberships) AS subset_memberships,
         (SELECT COUNT(*)::int FROM taxonomy_nodes) AS taxonomy_nodes,
-        (SELECT COUNT(*)::int FROM campaign_classifications) AS campaign_classifications
+        (SELECT COUNT(*)::int FROM campaign_classifications) AS campaign_classifications,
+        (SELECT COUNT(*)::int FROM analysis_category_metrics) AS analysis_category_metrics
     `
 
     const recentImports = await sql`

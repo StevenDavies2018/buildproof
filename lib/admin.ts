@@ -20,8 +20,11 @@ export type AdminSubsetCampaignRow = {
   rawState: string | null
   normalizedStatus: string
   campaignDurationDays: number | null
+  currency: string | null
   goal: string | null
   pledged: string | null
+  goalUsd: string | null
+  pledgedUsd: string | null
   backersCount: number | null
   membershipStatus: string
   confidenceLabel: string | null
@@ -57,8 +60,8 @@ const SORT_COLUMN_MAP: Record<string, string> = {
   membership: 'sm.membership_status',
   confidence: 'sm.confidence_label',
   duration: 'cn.campaign_duration_days',
-  goal: 'cr.goal',
-  pledged: 'cr.pledged',
+  goal: 'cmn.usd_goal',
+  pledged: 'cmn.usd_pledged',
   backers: 'cr.backers_count',
   creator: 'cr.creator_name',
   source: 'cr.project_url',
@@ -123,7 +126,7 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
     const minGoalValue =
       minGoal !== '' && Number.isFinite(Number(minGoal)) ? Number(minGoal) : null
     const minGoalFilter =
-      minGoalValue === null ? sql`` : sql`AND cr.goal >= ${minGoalValue}`
+      minGoalValue === null ? sql`` : sql`AND cmn.usd_goal >= ${minGoalValue}`
     const sortBy =
       filters.sortBy && SORT_COLUMN_MAP[filters.sortBy]
         ? filters.sortBy
@@ -144,8 +147,11 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
         cr.raw_state AS "rawState",
         cn.normalized_status AS "normalizedStatus",
         cn.campaign_duration_days AS "campaignDurationDays",
+        cr.currency AS "currency",
         cr.goal::text AS "goal",
         cr.pledged::text AS "pledged",
+        cmn.usd_goal::text AS "goalUsd",
+        cmn.usd_pledged::text AS "pledgedUsd",
         cr.backers_count AS "backersCount",
         sm.membership_status AS "membershipStatus",
         sm.confidence_label AS "confidenceLabel",
@@ -156,6 +162,7 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
       FROM subset_memberships sm
       INNER JOIN campaigns_raw cr ON cr.id = sm.campaign_id
       INNER JOIN campaigns_normalized cn ON cn.campaign_id = cr.id
+      LEFT JOIN campaign_currency_normalizations cmn ON cmn.campaign_id = cr.id
       LEFT JOIN LATERAL (
         SELECT
           MAX(CASE WHEN cc.is_primary THEN tn.label END) AS primary_label,

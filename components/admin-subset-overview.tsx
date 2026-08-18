@@ -33,18 +33,16 @@ function formatMoney(value: string | null) {
   }).format(numeric)
 }
 
+function formatNativeMoney(value: string | null, currency: string | null) {
+  if (!value) return 'n/a'
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 'n/a'
+  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(numeric)} ${currency?.toUpperCase() ?? 'native'}`
+}
+
 function formatDuration(value: number | null) {
   if (value === null || value === undefined) return 'n/a'
   return `${value}d`
-}
-
-function formatRawAmountHint(value: string | null) {
-  if (!value) return 'n/a'
-  const numeric = Number(value)
-  if (!Number.isFinite(numeric)) return value
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: 0,
-  }).format(numeric)
 }
 
 function formatLabels(labels: string[]) {
@@ -291,7 +289,7 @@ export default async function AdminSubsetOverview({
             />
           </FilterField>
 
-          <FilterField label="Minimum Goal (raw amount)">
+          <FilterField label="Minimum Goal (USD)">
             <input
               type="number"
               name="minGoal"
@@ -559,16 +557,19 @@ export default async function AdminSubsetOverview({
 
                 <StatBlock label="Goal">
                   <p className="font-mono text-sm text-slate-800">
-                    {formatMoney(campaign.goal)}
+                    {formatMoney(campaign.goalUsd)}
                   </p>
                   <p className="text-xs text-slate-500">
-                    Raw: {formatRawAmountHint(campaign.goal)}
+                    Native: {formatNativeMoney(campaign.goal, campaign.currency)}
                   </p>
                 </StatBlock>
 
                 <StatBlock label="Pledged">
                   <p className="font-mono text-sm text-slate-800">
-                    {formatMoney(campaign.pledged)}
+                    {formatMoney(campaign.pledgedUsd)}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Native: {formatNativeMoney(campaign.pledged, campaign.currency)}
                   </p>
                 </StatBlock>
 
