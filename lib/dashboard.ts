@@ -101,6 +101,7 @@ export type DashboardCategoryRow = {
 
 export type DashboardOverview = {
   configured: boolean
+  error?: 'database'
   filters: Required<DashboardFilters>
   summary: DashboardSummary
   taxonomy: DashboardTaxonomyRow[]
@@ -233,7 +234,9 @@ export async function getDashboardOverview(
     const cardLimitValue = Number(filters.cardLimit)
     const searchTerms = tokenizeResearchIdea(filters.search)
     const searchPatterns = searchTerms.flatMap((term) =>
-      term === 'dnd' ? ['%dnd%', '%d&d%'] : [`%${term}%`],
+      term === 'dnd'
+        ? ['(^|[^a-z0-9])dnd([^a-z0-9]|$)', '(^|[^a-z0-9])d&d([^a-z0-9]|$)']
+        : [`(^|[^a-z0-9])${term}([^a-z0-9]|$)`],
     )
     const sortColumnMap: Record<string, string> = {
       projectName: 'cr.project_name',
@@ -264,19 +267,25 @@ export async function getDashboardOverview(
         ? sql``
         : sql`
             AND (
-              cr.project_name ILIKE ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.blurb, '') ILIKE ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.creator_name, '') ILIKE ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.kickstarter_category_name, '') ILIKE ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.kickstarter_category_slug, '') ILIKE ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.raw_payload_json->>'description', cr.raw_payload_json->>'story', '')
-                ILIKE ANY(${sql.array(searchPatterns)}::text[])
+              cr.project_name ~* ANY(${sql.array(searchPatterns)}::text[])
+              OR COALESCE(cr.blurb, '') ~* ANY(${sql.array(searchPatterns)}::text[])
+              OR COALESCE(cr.creator_name, '') ~* ANY(${sql.array(searchPatterns)}::text[])
+              OR COALESCE(cr.kickstarter_category_name, '') ~* ANY(${sql.array(searchPatterns)}::text[])
+              OR COALESCE(cr.kickstarter_category_slug, '') ~* ANY(${sql.array(searchPatterns)}::text[])
+              OR COALESCE(
+                cr.raw_payload_json->'data'->>'description',
+                cr.raw_payload_json->'data'->>'story',
+                cr.raw_payload_json->>'description',
+                cr.raw_payload_json->>'story',
+                ''
+              )
+                ~* ANY(${sql.array(searchPatterns)}::text[])
               OR EXISTS (
                 SELECT 1
                 FROM campaign_classifications cc_search
                 INNER JOIN taxonomy_nodes tn_search ON tn_search.id = cc_search.taxonomy_node_id
                 WHERE cc_search.campaign_id = cr.id
-                  AND tn_search.label ILIKE ANY(${sql.array(searchPatterns)}::text[])
+                  AND tn_search.label ~* ANY(${sql.array(searchPatterns)}::text[])
               )
             )
           `
@@ -544,11 +553,17 @@ export async function getDashboardOverview(
           SELECT term
           FROM UNNEST(${sql.array(searchTerms)}::text[]) AS term
           WHERE REGEXP_REPLACE(
-            LOWER(COALESCE(cr.raw_payload_json->>'description', cr.raw_payload_json->>'story', '')),
+            LOWER(COALESCE(
+              cr.raw_payload_json->'data'->>'description',
+              cr.raw_payload_json->'data'->>'story',
+              cr.raw_payload_json->>'description',
+              cr.raw_payload_json->>'story',
+              ''
+            )),
             'd\\s*&\\s*d',
             'dnd',
             'g'
-          ) LIKE '%' || term || '%'
+          ) ~* ('(^|[^a-z0-9])' || term || '([^a-z0-9]|$)')
           ORDER BY term
         ) AS "descriptionMatchedTerms"
       FROM subset_memberships sm
@@ -624,6 +639,31 @@ export async function getDashboardOverview(
       trendDirection: resolveTrendDirection(trends),
       rankingVersion: RESEARCH_RANKING_VERSION,
       queryTerms: searchTerms,
+    }
+  } catch {
+    return {
+      configured: true,
+      error: 'database',
+      filters,
+      summary: {
+        comparableCampaigns: 0,
+        successRate: null,
+        medianSuccessfulBackers: null,
+        recentCampaignCount: 0,
+        researchableCampaignCount: 0,
+        medianSuccessfulFundingMultiple: null,
+        supportedOutcomeCount: 0,
+        moneyComparableCount: 0,
+      },
+      taxonomy: [],
+      trends: [],
+      availableYears: [],
+      outcomes: [],
+      campaigns: [],
+      categories: [],
+      trendDirection: 'insufficient_data',
+      rankingVersion: RESEARCH_RANKING_VERSION,
+      queryTerms: tokenizeResearchIdea(filters.search),
     }
   } finally {
     await sql.end()

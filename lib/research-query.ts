@@ -75,8 +75,8 @@ export function tokenizeResearchIdea(idea: string) {
 }
 
 function matchingTerms(terms: string[], value: string | null | undefined) {
-  const normalized = normalizeResearchText(value)
-  return terms.filter((term) => normalized.includes(term))
+  const tokens = new Set(normalizeResearchText(value).split(/\s+/).filter(Boolean))
+  return terms.filter((term) => tokens.has(term))
 }
 
 function termList(terms: string[]) {
@@ -129,10 +129,28 @@ export function rankResearchCandidates<T extends ResearchCandidate>(
       )
       const reasons: string[] = []
       let score = 0
+      const searchableText = normalizeResearchText(
+        [
+          candidate.projectName,
+          candidate.blurb,
+          candidate.creatorName,
+          candidate.categoryName,
+          candidate.categorySlug,
+          candidate.primaryClassificationLabel,
+          ...candidate.taxonomyLabels,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      )
+      const allTermsMatch = terms.length > 1 && terms.every((term) => searchableText.includes(term))
 
       if (normalizedIdea.length >= 4 && normalizeResearchText(candidate.projectName).includes(normalizedIdea)) {
-        score += 30
+        score += 45
         reasons.push('Project title contains the complete research phrase')
+      }
+      if (allTermsMatch) {
+        score += 24
+        reasons.push('All research terms appear in the campaign record')
       }
       if (titleMatches.length) {
         score += titleMatches.length * 14

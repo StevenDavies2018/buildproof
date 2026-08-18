@@ -69,10 +69,13 @@ function normalizeModeLabel(mode: string) {
 
 export default async function CampaignDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ campaignId: string }>
+  searchParams?: Promise<{ returnTo?: string }>
 }) {
   const resolvedParams = await params
+  const resolvedSearchParams = (await searchParams) ?? {}
   const campaignId = Number.parseInt(resolvedParams.campaignId, 10)
 
   if (!Number.isInteger(campaignId)) {
@@ -124,7 +127,7 @@ export default async function CampaignDetailPage({
                 categoryLabel={campaign.primaryClassificationLabel ?? campaign.categoryName}
                 projectUrl={campaign.projectUrl}
               />
-              <Link href="/" className="bs-button-secondary">
+              <Link href={resolvedSearchParams.returnTo || '/'} className="bs-button-secondary">
                 Back to user view
               </Link>
               {campaign.projectUrl ? (

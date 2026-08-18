@@ -151,7 +151,12 @@ const DETAIL_SELECT = `
     cr.project_name AS "projectName",
     cr.project_url AS "projectUrl",
     cr.blurb AS "blurb",
-    COALESCE(cr.raw_payload_json->>'description', cr.raw_payload_json->>'story') AS "description",
+    COALESCE(
+      cr.raw_payload_json->'data'->>'description',
+      cr.raw_payload_json->'data'->>'story',
+      cr.raw_payload_json->>'description',
+      cr.raw_payload_json->>'story'
+    ) AS "description",
     cr.creator_name AS "creatorName",
     cr.creator_id AS "creatorId",
     cr.kickstarter_category_name AS "categoryName",

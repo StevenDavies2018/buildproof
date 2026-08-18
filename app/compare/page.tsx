@@ -192,6 +192,8 @@ export default async function ComparePage({
   const campaigns = await getCompareCampaigns(ids)
   const categorySet = new Set(campaigns.map((campaign) => campaign.categorySlug).filter(Boolean))
   const mixedCategories = categorySet.size > 1
+  const currencySet = new Set(campaigns.map((campaign) => campaign.money.currency).filter(Boolean))
+  const mixedCurrencies = currencySet.size > 1
   const topBackers = pickCampaignByMetric(campaigns, (campaign) => campaign.backersCount)
   const topFundingMultiple = pickCampaignByMetric(campaigns, (campaign) => campaign.fundingMultiple)
   const lowestGoal = pickCampaignByMetric(
@@ -236,9 +238,20 @@ export default async function ComparePage({
           ) : null}
 
           {mixedCategories ? (
-            <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5 text-amber-950">
+            <div className="mt-6 rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-rose-950">
               <p className="text-sm leading-7">
-                These campaigns are from different categories. You can still inspect them here, but the strongest compare-and-contrast reading comes from same-category selections.
+                These campaigns are from different Kickstarter categories. This view
+                is descriptive only; use same-category selections for a trustworthy
+                compare-and-contrast conclusion.
+              </p>
+            </div>
+          ) : null}
+          {mixedCurrencies ? (
+            <div className="mt-4 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5 text-amber-950">
+              <p className="text-sm leading-7">
+                These campaigns use different native currencies. USD values are
+                comparable only where normalization is available; review each
+                campaign&apos;s normalization confidence before drawing conclusions.
               </p>
             </div>
           ) : null}

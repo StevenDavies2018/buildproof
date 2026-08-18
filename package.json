@@ -17,7 +17,7 @@
     "db:validate:currency": "node ./scripts/validate-currency-normalization.mjs",
     "db:refresh:analysis": "node ./scripts/refresh-category-analysis.mjs --subset-key ttrpg_poc",
     "db:validate:analysis": "node ./scripts/validate-category-analysis.mjs",
-    "test:research": "node --experimental-strip-types --test ./tests/research-query.test.ts ./tests/research-benchmarks.test.ts",
+    "test:research": "node --experimental-strip-types --test ./tests/research-query.test.ts ./tests/research-benchmarks.test.ts ./tests/ttrpg-taxonomy.test.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

@@ -424,6 +424,8 @@ export default async function ResearchDashboard({
     data.filters.categorySlug ||
     'TTRPG market slice'
 
+  const retryHref = `/${buildDashboardQueryString(data.filters)}`
+
   if (!data.configured) {
     return (
       <section className="bs-panel">
@@ -435,6 +437,22 @@ export default async function ResearchDashboard({
           `POSTGRES_URL` is not configured yet, so the user-facing research view
           cannot query the TTRPG proof-of-concept dataset.
         </p>
+      </section>
+    )
+  }
+
+  if (data.error === 'database') {
+    return (
+      <section className="bs-panel">
+        <p className="bs-kicker">Backer Sonar</p>
+        <h1 className="bs-title mt-3 text-4xl font-semibold">Research dashboard temporarily unavailable</h1>
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
+          The data connection did not respond. Your current filters are preserved,
+          and no research results were substituted or inferred.
+        </p>
+        <Link href={retryHref} className="bs-button-primary mt-6 inline-flex">
+          Retry connection
+        </Link>
       </section>
     )
   }
@@ -558,6 +576,10 @@ export default async function ResearchDashboard({
                         placeholder="Solo journaling RPG, 5e monster book, dungeon crawler"
                         className="bs-field bs-field-dark"
                       />
+                      <span className="text-xs leading-5 text-blue-100/65">
+                        Matches any entered term across project text, categories,
+                        and taxonomy; results with more matching terms rank higher.
+                      </span>
                     </label>
 
                     <label className="grid gap-2">
@@ -569,7 +591,7 @@ export default async function ResearchDashboard({
                         defaultValue={data.filters.categorySlug}
                         className="bs-field bs-field-dark"
                       >
-                        <option value="">All TTRPG categories</option>
+                        <option value="">All categories in the TTRPG proof-of-concept</option>
                         {data.categories.map((category) => (
                           <option key={category.categorySlug} value={category.categorySlug}>
                             {category.categorySlug}
@@ -1090,7 +1112,10 @@ export default async function ResearchDashboard({
                 </div>
 
                 <h3 className="bs-title mt-4 text-2xl font-semibold">
-                  <Link href={`/campaigns/${campaign.campaignId}`} className="hover:underline">
+                  <Link
+                    href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/${buildDashboardQueryString(data.filters)}`)}`}
+                    className="hover:underline"
+                  >
                     {campaign.projectName}
                   </Link>
                 </h3>
@@ -1171,7 +1196,7 @@ export default async function ResearchDashboard({
 
                 <div className="mt-5 flex flex-wrap gap-3">
                   <Link
-                    href={`/campaigns/${campaign.campaignId}`}
+                    href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/${buildDashboardQueryString(data.filters)}`)}`}
                     className="bs-button-secondary"
                   >
                     Open detail
@@ -1238,7 +1263,9 @@ export default async function ResearchDashboard({
           ) : (
             <div className="bs-panel-subtle xl:col-span-2">
               <p className="text-sm leading-7 text-slate-600">
-                No campaigns matched the current filter set. Try broadening the search text, lowering the minimum backer threshold, or reopening failures.
+                No campaigns matched this filter set. Try removing a search term,
+                lowering the minimum goal or backer threshold, widening the
+                duration or launch window, or reopening unsuccessful campaigns.
               </p>
             </div>
           )}

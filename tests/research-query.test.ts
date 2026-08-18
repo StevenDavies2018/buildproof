@@ -44,7 +44,20 @@ test('ranks stronger title and summary matches first with explanations', () => {
   assert.equal(ranked[0].campaignId, 1)
   assert.ok(ranked[0].relevanceScore > ranked[1].relevanceScore)
   assert.ok(ranked[0].matchReasons.some((reason) => reason.startsWith('Title matches')))
-  assert.deepEqual(ranked[0].matchedTerms, ['solo', 'rpg', 'journaling'])
+  assert.deepEqual(ranked[0].matchedTerms, ['solo', 'journaling'])
+})
+
+test('treats short search terms as whole words', () => {
+  const ranked = rankResearchCandidates(
+    [
+      candidate({ projectName: 'The Iron Frontier: Modular Terrain' }),
+      candidate({ projectName: 'AI Dungeon Master Toolkit', taxonomyLabels: ['AI'] }),
+    ],
+    { idea: 'AI' },
+  )
+
+  assert.equal(ranked[0].projectName, 'AI Dungeon Master Toolkit')
+  assert.deepEqual(ranked[0].matchedTerms, ['ai'])
 })
 
 test('explains matches found only in the full project description', () => {
