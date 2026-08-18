@@ -79,9 +79,10 @@ function formatPercent(value: number | null) {
   return `${value.toFixed(1)}%`
 }
 
-function formatMultiple(value: number | null) {
-  if (value === null) return 'n/a'
-  return `${value.toFixed(2)}x`
+function formatMultiple(value: number | string | null) {
+  const parsed = numeric(value)
+  if (parsed === null) return 'n/a'
+  return `${parsed.toFixed(2)}x`
 }
 
 function trendLabel(value: CategoryAnalysisMetric['trendLabel']) {
@@ -630,6 +631,33 @@ export default async function ReportsPage({
                   <p className="mt-2 text-xs leading-5 text-slate-500">
                     {campaign.primaryClassificationLabel ?? 'Unclassified'} | {campaign.categoryName ?? 'Unknown category'}
                   </p>
+                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
+                    {campaign.blurb ?? 'No campaign summary is available in the current snapshot.'}
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                      <span className="block text-slate-500">Goal</span>
+                      <span className="mt-1 block font-semibold text-slate-900">{campaign.goalUsd === null ? 'n/a' : formatMoney(Number(campaign.goalUsd))}</span>
+                    </div>
+                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                      <span className="block text-slate-500">Pledged</span>
+                      <span className="mt-1 block font-semibold text-slate-900">{campaign.pledgedUsd === null ? 'n/a' : formatMoney(Number(campaign.pledgedUsd))}</span>
+                    </div>
+                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                      <span className="block text-slate-500">Backers</span>
+                      <span className="mt-1 block font-semibold text-slate-900">{formatInteger(campaign.backersCount)}</span>
+                    </div>
+                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                      <span className="block text-slate-500">Duration</span>
+                      <span className="mt-1 block font-semibold text-slate-900">
+                        {campaign.campaignDurationDays === null ? 'n/a' : `${formatInteger(campaign.campaignDurationDays)}d`}
+                      </span>
+                    </div>
+                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                      <span className="block text-slate-500">Multiple</span>
+                      <span className="mt-1 block font-semibold text-slate-900">{formatMultiple(campaign.fundingMultiple)}</span>
+                    </div>
+                  </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <a
                       href={`/campaigns/${campaign.campaignId}`}
