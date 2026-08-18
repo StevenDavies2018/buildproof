@@ -4,6 +4,7 @@ export type CategoryAnalysisMetric = {
   dimensionKey: string
   taxonomyNodeId: number | null
   taxonomyLabel: string
+  taxonomyParentLabel: string | null
   metricWindow: 'all_time' | 'last_24_months'
   windowStart: string | null
   windowEnd: string
@@ -96,6 +97,7 @@ async function queryCategoryAnalysisMetrics(
         dimension_key AS "dimensionKey",
         taxonomy_node_id AS "taxonomyNodeId",
         taxonomy_label AS "taxonomyLabel",
+        parent_node.label AS "taxonomyParentLabel",
         metric_window AS "metricWindow",
         window_start::text AS "windowStart",
         window_end::text AS "windowEnd",
@@ -118,6 +120,8 @@ async function queryCategoryAnalysisMetrics(
         analysis_version AS "analysisVersion",
         calculated_at::text AS "calculatedAt"
       FROM analysis_category_metrics
+      LEFT JOIN taxonomy_nodes report_node ON report_node.id = analysis_category_metrics.taxonomy_node_id
+      LEFT JOIN taxonomy_nodes parent_node ON parent_node.id = report_node.parent_id
       WHERE subset_key = 'ttrpg_poc'
         AND metric_window = ${metricWindow}
         AND analysis_version = (

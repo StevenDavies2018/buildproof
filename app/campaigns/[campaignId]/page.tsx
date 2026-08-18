@@ -88,6 +88,15 @@ export default async function CampaignDetailPage({
     notFound()
   }
 
+  const dataWarnings = [
+    !campaign.projectUrl ? 'Direct Kickstarter campaign URL is unavailable.' : null,
+    !campaign.description && !campaign.blurb ? 'Campaign description is unavailable.' : null,
+    !campaign.money.goalUsd || !campaign.money.pledgedUsd ? 'USD money normalization is unavailable.' : null,
+    campaign.backersCount === null ? 'Backer count is unavailable.' : null,
+    campaign.campaignDurationDays === null ? 'Campaign duration is unavailable.' : null,
+    !campaign.taxonomyLabels.length ? 'No taxonomy labels are assigned.' : null,
+  ].filter((warning): warning is string => Boolean(warning))
+
   return (
     <main className="bs-shell">
       <div className="bs-container">
@@ -212,6 +221,20 @@ export default async function CampaignDetailPage({
                 <p className="bs-kicker">Confidence</p>
                 <p className="mt-2 text-sm text-slate-700 [overflow-wrap:anywhere]">{campaign.confidenceLabel ?? 'n/a'}</p>
               </div>
+            </div>
+
+            <div className={`mt-6 rounded-[1.5rem] border p-5 ${dataWarnings.length ? 'border-amber-200 bg-amber-50 text-amber-950' : 'border-emerald-200 bg-emerald-50 text-emerald-950'}`}>
+              <p className="bs-kicker">Data completeness</p>
+              <p className="mt-2 text-sm leading-6">
+                {dataWarnings.length
+                  ? `${dataWarnings.length} limitation${dataWarnings.length === 1 ? '' : 's'} should be reviewed before comparing this campaign.`
+                  : 'Core source, money, campaign, and taxonomy fields are present for review.'}
+              </p>
+              {dataWarnings.length ? (
+                <ul className="mt-3 grid gap-1 text-xs leading-5">
+                  {dataWarnings.map((warning) => <li key={warning}>- {warning}</li>)}
+                </ul>
+              ) : null}
             </div>
 
             <div className="mt-6 rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-5">

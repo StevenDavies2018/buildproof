@@ -3,6 +3,7 @@ import {
   type CategoryAnalysisMetric,
   getCategoryAnalysisMetrics,
 } from '@/lib/category-analysis'
+import { getDashboardOverview } from '@/lib/dashboard'
 
 export const dynamic = 'force-dynamic'
 
@@ -215,6 +216,7 @@ function CategoryCard({
       </div>
       <Link
         href={`/reports?window=${metricWindow}&category=${encodeURIComponent(metric.dimensionKey)}&trend=${trendFilter}&sort=${sortBy}&order=${sortOrder}${selectedYear === null ? '' : `&year=${selectedYear}`}`}
+        scroll={false}
         className="bs-button-secondary mt-[30px] inline-flex"
       >
         View category report
@@ -228,6 +230,7 @@ export default async function ReportsPage({
 }: {
   searchParams?: Promise<{
     window?: string
+    domain?: string
     category?: string
     trend?: string
     sort?: string
@@ -239,6 +242,7 @@ export default async function ReportsPage({
   const metricWindow: CategoryAnalysisMetric['metricWindow'] =
     resolvedSearchParams.window === 'last_24_months' ? 'last_24_months' : 'all_time'
   const metrics = await getCategoryAnalysisMetrics(metricWindow)
+  const selectedDomain = resolvedSearchParams.domain === 'ttrpg' ? 'ttrpg' : 'ttrpg'
   const requestedCategory = resolvedSearchParams.category ?? 'all'
   const trendFilter: TrendFilter = TREND_FILTERS.some(
     (filter) => filter.value === resolvedSearchParams.trend,
@@ -297,6 +301,13 @@ export default async function ReportsPage({
     .filter((entry): entry is { metric: CategoryAnalysisMetric; displayMetric: CategoryAnalysisMetric | ReportYear } => (
       entry.displayMetric !== null
     ))
+  const categoryGroups = categoryEntries.reduce((groups, entry) => {
+    const parent = entry.metric.taxonomyParentLabel ?? 'Other classifications'
+    const existing = groups.get(parent) ?? []
+    existing.push(entry)
+    groups.set(parent, existing)
+    return groups
+  }, new Map<string, typeof categoryEntries>())
   const filteredCategories = categoryEntries
     .filter(({ metric }) => trendFilter === 'all' || metric.trendLabel === trendFilter)
     .sort((left, right) => {
@@ -320,6 +331,14 @@ export default async function ReportsPage({
     selectedMetric.dimensionKey === 'all'
       ? `/?view=campaigns${selectedYear === null ? '' : `&years=${selectedYear}`}`
       : `/?view=campaigns&taxonomyLabel=${encodeURIComponent(selectedMetric.taxonomyLabel)}${selectedYear === null ? '' : `&years=${selectedYear}`}`
+  const supportingCampaigns = await getDashboardOverview({
+    view: 'campaigns',
+    taxonomyLabel: selectedMetric.dimensionKey === 'all' ? '' : selectedMetric.taxonomyLabel,
+    years: selectedYear === null ? '' : String(selectedYear),
+    cardLimit: '100',
+    sortBy: 'recommended',
+    sortDir: 'desc',
+  })
 
   return (
     <main className="bs-shell">
@@ -354,15 +373,15 @@ export default async function ReportsPage({
               <p className="bs-kicker">Report controls</p>
               <h2 className="bs-title mt-2 text-2xl font-semibold">Choose the evidence slice</h2>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/reports?window=all_time&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}`}
+            <div className="flex flex-wrap items-center gap-2">
+                <Link
+                href={`/reports?window=all_time&domain=${selectedDomain}&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}`}
                 className={metricWindow === 'all_time' ? 'bs-button-primary' : 'bs-button-secondary'}
               >
                 All time
               </Link>
               <Link
-                href={`/reports?window=last_24_months&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}`}
+                href={`/reports?window=last_24_months&domain=${selectedDomain}&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}`}
                 className={metricWindow === 'last_24_months' ? 'bs-button-primary' : 'bs-button-secondary'}
               >
                 Last 24 months
@@ -372,18 +391,29 @@ export default async function ReportsPage({
 
           <form method="get" action="/reports" className="mt-6 grid gap-3 md:grid-cols-[1fr,auto] md:items-end">
             <input type="hidden" name="window" value={metricWindow} />
+            <input type="hidden" name="domain" value={selectedDomain} />
             <input type="hidden" name="trend" value={trendFilter} />
             <input type="hidden" name="sort" value={categorySort} />
             <input type="hidden" name="order" value={sortOrder} />
             {selectedYear !== null ? <input type="hidden" name="year" value={selectedYear} /> : null}
             <label className="grid gap-2">
-              <span className="bs-kicker">Category</span>
+              <span className="bs-kicker">Main category</span>
+              <select name="domain" defaultValue={selectedDomain} className="bs-field">
+                <option value="ttrpg">TTRPG</option>
+              </select>
+            </label>
+            <label className="grid gap-2">
+              <span className="bs-kicker">Subcategory</span>
               <select name="category" defaultValue={selectedMetric.dimensionKey} className="bs-field">
-                <option value="all">All TTRPG</option>
-                {categoryEntries.map(({ metric, displayMetric }) => (
-                  <option key={metric.dimensionKey} value={metric.dimensionKey}>
-                    {metric.taxonomyLabel} ({formatInteger(displayMetric.campaignCount)})
-                  </option>
+                <option value="all">All TTRPG subcategories</option>
+                {Array.from(categoryGroups.entries()).map(([parent, entries]) => (
+                  <optgroup key={parent} label={parent}>
+                    {entries.map(({ metric, displayMetric }) => (
+                      <option key={metric.dimensionKey} value={metric.dimensionKey}>
+                        {metric.taxonomyLabel} ({formatInteger(displayMetric.campaignCount)})
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </label>
@@ -391,7 +421,7 @@ export default async function ReportsPage({
           </form>
         </section>
 
-        <section className="bs-panel">
+        <section className="order-4 bs-panel">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="bs-kicker">Selected report</p>
@@ -402,12 +432,12 @@ export default async function ReportsPage({
                   : `Campaigns launched during ${selectedYear}.`}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className={`bs-data-chip ${trendClass(selectedMetric.trendLabel)}`}>
                 {trendLabel(selectedMetric.trendLabel)} activity
               </span>
               <Link href={campaignSliceHref} className="bs-button-primary">
-                View supporting campaigns
+                View {formatInteger(displayedMetric.campaignCount)} campaign links
               </Link>
             </div>
           </div>
@@ -456,7 +486,7 @@ export default async function ReportsPage({
           </div>
         </section>
 
-        <section className="bs-panel">
+        <section className="order-2 bs-panel">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="bs-kicker">Yearly activity</p>
@@ -500,7 +530,7 @@ export default async function ReportsPage({
           </div>
         </section>
 
-        <section id="category-roster" className="bs-panel scroll-mt-28">
+        <section id="category-roster" className="order-3 bs-panel scroll-mt-28">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
             <p className="bs-kicker">Category roster</p>
@@ -508,7 +538,7 @@ export default async function ReportsPage({
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
               {selectedYear === null
                 ? 'Open a category report for its complete metric set, then drill into the underlying campaigns when a signal deserves investigation.'
-                : `Showing categories with campaigns launched in ${selectedYear}. Category reports and supporting campaign links retain this year.`}
+                : `Showing ${categoryEntries.length} category groups containing ${formatInteger(displayedMetric.campaignCount)} campaigns launched in ${selectedYear}. Category reports and supporting campaign links retain this year.`}
             </p>
             </div>
           </div>
@@ -530,7 +560,7 @@ export default async function ReportsPage({
                       : categoryEntries.filter(({ metric }) => metric.trendLabel === filter.value).length
                   return (
                     <option key={filter.value} value={filter.value}>
-                      {filter.label} ({count})
+                      {filter.label} ({count} {count === 1 ? 'category' : 'categories'})
                     </option>
                   )
                 })}
@@ -573,6 +603,56 @@ export default async function ReportsPage({
               No categories match this trend status in the selected reporting window.
             </div>
           ) : null}
+        </section>
+
+        <section className="order-5 bs-panel">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="bs-kicker">Supporting campaigns</p>
+              <h2 className="bs-title mt-2 text-2xl font-semibold">Campaign links for this report</h2>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+                These campaigns match the selected report slice. Open a detail page
+                or the original Kickstarter source without leaving Reporting.
+              </p>
+            </div>
+            <span className="bs-data-chip bg-slate-900 text-white">
+              {formatInteger(supportingCampaigns.summary.comparableCampaigns)} campaigns
+            </span>
+          </div>
+          {supportingCampaigns.campaigns.length ? (
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {supportingCampaigns.campaigns.map((campaign) => (
+                <article key={campaign.campaignId} className="bs-panel-subtle min-w-0">
+                  <p className="bs-kicker">{campaign.normalizedStatus}</p>
+                  <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                    {campaign.projectName}
+                  </h3>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    {campaign.primaryClassificationLabel ?? 'Unclassified'} | {campaign.categoryName ?? 'Unknown category'}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <a
+                      href={`/campaigns/${campaign.campaignId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="bs-button-secondary"
+                    >
+                      Open detail
+                    </a>
+                    {campaign.projectUrl ? (
+                      <a href={campaign.projectUrl} target="_blank" rel="noreferrer" className="bs-button-primary">
+                        Kickstarter source
+                      </a>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="bs-panel-subtle mt-6 text-sm leading-6 text-slate-600">
+              No supporting campaign links are available for this report slice.
+            </div>
+          )}
         </section>
       </div>
     </main>

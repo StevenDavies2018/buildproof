@@ -281,6 +281,27 @@ function TaxonomyBar({
   )
 }
 
+function getCampaignCompleteness(campaign: {
+  projectUrl: string | null
+  blurb: string | null
+  launchedAt: string | null
+  goalUsd: string | null
+  pledgedUsd: string | null
+  backersCount: number | null
+  campaignDurationDays: number | null
+  taxonomyLabels: string[]
+}) {
+  return [
+    Boolean(campaign.projectUrl),
+    Boolean(campaign.blurb),
+    Boolean(campaign.launchedAt),
+    Boolean(campaign.goalUsd && campaign.pledgedUsd),
+    campaign.backersCount !== null,
+    campaign.campaignDurationDays !== null,
+    campaign.taxonomyLabels.length > 0,
+  ].filter(Boolean).length
+}
+
 function formatCardSort(sortBy: string, sortDir: string) {
   if (sortBy === 'recommended') return 'Recommended order'
 
@@ -1094,6 +1115,9 @@ export default async function ResearchDashboard({
                       Same-category ready
                     </span>
                   ) : null}
+                  <span className={`bs-data-chip ${getCampaignCompleteness(campaign) >= 6 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                    Data {getCampaignCompleteness(campaign)}/7
+                  </span>
                   {data.filters.search ? (
                     <span className="bs-data-chip bg-blue-100 text-blue-900">
                       Relevance {campaign.relevanceScore}
@@ -1153,40 +1177,40 @@ export default async function ResearchDashboard({
                   </div>
                 ) : null}
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  <div className="rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
+                <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-5">
+                  <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Goal</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
                       {formatNativeMoney(campaign.goal, campaign.currency)}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
                       USD {formatUsdMoney(campaign.goalUsd)}
                     </p>
                   </div>
-                  <div className="rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
+                  <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Pledged</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
                       {formatNativeMoney(campaign.pledged, campaign.currency)}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
                       USD {formatUsdMoney(campaign.pledgedUsd)}
                     </p>
                   </div>
-                  <div className="rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
+                  <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Backers</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
                       {formatInteger(campaign.backersCount)}
                     </p>
                   </div>
-                  <div className="rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
+                  <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Funding multiple</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
                       {formatMultiple(campaign.fundingMultiple)}
                     </p>
                   </div>
-                  <div className="rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
+                  <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Duration</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
                       {campaign.campaignDurationDays === null
                         ? 'n/a'
                         : `${formatInteger(campaign.campaignDurationDays)}d`}
