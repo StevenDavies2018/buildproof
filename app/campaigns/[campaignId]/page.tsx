@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getCampaignDetail } from '@/lib/research'
+import { SaveCampaignButton } from '@/components/saved-research'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,6 +118,12 @@ export default async function CampaignDetailPage({
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <SaveCampaignButton
+                campaignId={campaign.campaignId}
+                projectName={campaign.projectName}
+                categoryLabel={campaign.primaryClassificationLabel ?? campaign.categoryName}
+                projectUrl={campaign.projectUrl}
+              />
               <Link href="/" className="bs-button-secondary">
                 Back to user view
               </Link>

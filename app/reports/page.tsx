@@ -25,7 +25,12 @@ const CATEGORY_SORTS: Array<{ value: CategorySort; label: string }> = [
   { value: 'money_coverage', label: 'Money coverage' },
 ]
 
-function categorySortValue(metric: CategoryAnalysisMetric, sortBy: CategorySort) {
+type CategoryDisplayMetric = Pick<
+  CategoryAnalysisMetric,
+  'campaignCount' | 'successRate' | 'medianGoalUsd' | 'moneyComparableCount'
+>
+
+function categorySortValue(metric: CategoryDisplayMetric, sortBy: CategorySort) {
   if (sortBy === 'campaigns') return metric.campaignCount
   if (sortBy === 'success_rate') return metric.successRate
   if (sortBy === 'median_goal') return metric.medianGoalUsd
@@ -39,7 +44,14 @@ type ReportYear = {
   campaignCount: number
   completedCount: number
   successCount: number
+  failureCount: number
   successRate: number | null
+  medianGoalUsd: number | null
+  medianPledgedUsd: number | null
+  medianBackers: number | null
+  medianAveragePledgeUsd: number | null
+  medianFundingMultiple: number | null
+  moneyComparableCount: number
 }
 
 function numeric(value: unknown) {
@@ -104,7 +116,14 @@ function getYearRows(metric: CategoryAnalysisMetric): ReportYear[] {
         campaignCount,
         completedCount: numeric(row.completedCount) ?? 0,
         successCount: numeric(row.successCount) ?? 0,
+        failureCount: numeric(row.failureCount) ?? 0,
         successRate: numeric(row.successRate),
+        medianGoalUsd: numeric(row.medianGoalUsd),
+        medianPledgedUsd: numeric(row.medianPledgedUsd),
+        medianBackers: numeric(row.medianBackers),
+        medianAveragePledgeUsd: numeric(row.medianAveragePledgeUsd),
+        medianFundingMultiple: numeric(row.medianFundingMultiple),
+        moneyComparableCount: numeric(row.moneyComparableCount) ?? 0,
       }
     })
     .filter((row): row is ReportYear => row !== null)
@@ -130,21 +149,25 @@ function MetricCard({
 
 function CategoryCard({
   metric,
+  displayMetric,
   selected,
   metricWindow,
+  selectedYear,
   trendFilter,
   sortBy,
   sortOrder,
 }: {
   metric: CategoryAnalysisMetric
+  displayMetric: CategoryDisplayMetric
   selected: boolean
   metricWindow: CategoryAnalysisMetric['metricWindow']
+  selectedYear: number | null
   trendFilter: TrendFilter
   sortBy: CategorySort
   sortOrder: SortOrder
 }) {
-  const coverage = metric.campaignCount
-    ? (metric.moneyComparableCount / metric.campaignCount) * 100
+  const coverage = displayMetric.campaignCount
+    ? (displayMetric.moneyComparableCount / displayMetric.campaignCount) * 100
     : 0
 
   return (
@@ -168,19 +191,19 @@ function CategoryCard({
         <div>
           <p className="text-slate-500">Campaigns</p>
           <p className="mt-1 font-mono text-lg font-semibold text-slate-900">
-            {formatInteger(metric.campaignCount)}
+            {formatInteger(displayMetric.campaignCount)}
           </p>
         </div>
         <div>
           <p className="text-slate-500">Success rate</p>
           <p className="mt-1 font-mono text-lg font-semibold text-slate-900">
-            {formatPercent(metric.successRate)}
+            {formatPercent(displayMetric.successRate)}
           </p>
         </div>
         <div>
           <p className="text-slate-500">Median goal</p>
           <p className="mt-1 font-mono font-semibold text-slate-900">
-            {formatMoney(metric.medianGoalUsd)}
+            {formatMoney(displayMetric.medianGoalUsd)}
           </p>
         </div>
         <div>
@@ -191,7 +214,7 @@ function CategoryCard({
         </div>
       </div>
       <Link
-        href={`/reports?window=${metricWindow}&category=${encodeURIComponent(metric.dimensionKey)}&trend=${trendFilter}&sort=${sortBy}&order=${sortOrder}`}
+        href={`/reports?window=${metricWindow}&category=${encodeURIComponent(metric.dimensionKey)}&trend=${trendFilter}&sort=${sortBy}&order=${sortOrder}${selectedYear === null ? '' : `&year=${selectedYear}`}`}
         className="bs-button-secondary mt-[30px] inline-flex"
       >
         View category report
@@ -209,6 +232,7 @@ export default async function ReportsPage({
     trend?: string
     sort?: string
     order?: string
+    year?: string
   }>
 }) {
   const resolvedSearchParams = (await searchParams) ?? {}
@@ -227,10 +251,10 @@ export default async function ReportsPage({
     ? (resolvedSearchParams.sort as CategorySort)
     : 'campaigns'
   const sortOrder: SortOrder = resolvedSearchParams.order === 'asc' ? 'asc' : 'desc'
-  const selectedMetric =
+  const requestedMetric =
     metrics.find((metric) => metric.dimensionKey === requestedCategory) ?? metrics[0]
 
-  if (!selectedMetric) {
+  if (!requestedMetric) {
     return (
       <main className="bs-shell">
         <div className="bs-container">
@@ -246,32 +270,56 @@ export default async function ReportsPage({
     )
   }
 
+  const availableYears = getYearRows(metrics[0] ?? requestedMetric)
+  const requestedYear = Number(resolvedSearchParams.year)
+  const selectedYear = Number.isInteger(requestedYear) && availableYears.some(
+    (year) => year.launchYear === requestedYear,
+  )
+    ? requestedYear
+    : null
+  const selectedMetric = selectedYear !== null && !getYearRows(requestedMetric).some(
+    (year) => year.launchYear === selectedYear,
+  )
+    ? metrics[0]
+    : requestedMetric
+  const selectedYearMetric = selectedYear === null
+    ? null
+    : getYearRows(selectedMetric).find((year) => year.launchYear === selectedYear) ?? null
+  const displayedMetric = selectedYearMetric ?? selectedMetric
   const categories = metrics.filter((metric) => metric.dimensionKey !== 'all')
-  const filteredCategories = (
-    trendFilter === 'all'
-      ? categories
-      : categories.filter((metric) => metric.trendLabel === trendFilter)
-  ).sort((left, right) => {
-    const leftValue = categorySortValue(left, categorySort)
-    const rightValue = categorySortValue(right, categorySort)
-    if (leftValue === null && rightValue === null) {
-      return left.taxonomyLabel.localeCompare(right.taxonomyLabel)
-    }
-    if (leftValue === null) return 1
-    if (rightValue === null) return -1
-    const difference = leftValue - rightValue
-    if (difference === 0) return left.taxonomyLabel.localeCompare(right.taxonomyLabel)
-    return sortOrder === 'asc' ? difference : -difference
-  })
+  const categoryEntries = categories
+    .map((metric) => ({
+      metric,
+      displayMetric: selectedYear === null
+        ? metric
+        : getYearRows(metric).find((year) => year.launchYear === selectedYear) ?? null,
+    }))
+    .filter((entry): entry is { metric: CategoryAnalysisMetric; displayMetric: CategoryAnalysisMetric | ReportYear } => (
+      entry.displayMetric !== null
+    ))
+  const filteredCategories = categoryEntries
+    .filter(({ metric }) => trendFilter === 'all' || metric.trendLabel === trendFilter)
+    .sort((left, right) => {
+      const leftValue = categorySortValue(left.displayMetric, categorySort)
+      const rightValue = categorySortValue(right.displayMetric, categorySort)
+      if (leftValue === null && rightValue === null) {
+        return left.metric.taxonomyLabel.localeCompare(right.metric.taxonomyLabel)
+      }
+      if (leftValue === null) return 1
+      if (rightValue === null) return -1
+      const difference = leftValue - rightValue
+      if (difference === 0) return left.metric.taxonomyLabel.localeCompare(right.metric.taxonomyLabel)
+      return sortOrder === 'asc' ? difference : -difference
+    })
   const years = getYearRows(selectedMetric)
   const maxYearCount = Math.max(...years.map((year) => year.campaignCount), 1)
-  const moneyCoverage = selectedMetric.campaignCount
-    ? (selectedMetric.moneyComparableCount / selectedMetric.campaignCount) * 100
+  const moneyCoverage = displayedMetric.campaignCount
+    ? (displayedMetric.moneyComparableCount / displayedMetric.campaignCount) * 100
     : 0
   const campaignSliceHref =
     selectedMetric.dimensionKey === 'all'
-      ? '/?view=campaigns'
-      : `/?view=campaigns&taxonomyLabel=${encodeURIComponent(selectedMetric.taxonomyLabel)}`
+      ? `/?view=campaigns${selectedYear === null ? '' : `&years=${selectedYear}`}`
+      : `/?view=campaigns&taxonomyLabel=${encodeURIComponent(selectedMetric.taxonomyLabel)}${selectedYear === null ? '' : `&years=${selectedYear}`}`
 
   return (
     <main className="bs-shell">
@@ -327,13 +375,14 @@ export default async function ReportsPage({
             <input type="hidden" name="trend" value={trendFilter} />
             <input type="hidden" name="sort" value={categorySort} />
             <input type="hidden" name="order" value={sortOrder} />
+            {selectedYear !== null ? <input type="hidden" name="year" value={selectedYear} /> : null}
             <label className="grid gap-2">
               <span className="bs-kicker">Category</span>
               <select name="category" defaultValue={selectedMetric.dimensionKey} className="bs-field">
                 <option value="all">All TTRPG</option>
-                {categories.map((metric) => (
+                {categoryEntries.map(({ metric, displayMetric }) => (
                   <option key={metric.dimensionKey} value={metric.dimensionKey}>
-                    {metric.taxonomyLabel} ({formatInteger(metric.campaignCount)})
+                    {metric.taxonomyLabel} ({formatInteger(displayMetric.campaignCount)})
                   </option>
                 ))}
               </select>
@@ -348,7 +397,9 @@ export default async function ReportsPage({
               <p className="bs-kicker">Selected report</p>
               <h2 className="bs-title mt-2 text-4xl font-semibold">{selectedMetric.taxonomyLabel}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                {metricWindow === 'all_time' ? 'All available campaign history' : 'Campaigns launched in the trailing 24 months'} through August 12, 2026.
+                {selectedYear === null
+                  ? `${metricWindow === 'all_time' ? 'All available campaign history' : 'Campaigns launched in the trailing 24 months'} through August 12, 2026.`
+                  : `Campaigns launched during ${selectedYear}.`}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -364,43 +415,43 @@ export default async function ReportsPage({
           <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Campaigns"
-              value={formatInteger(selectedMetric.campaignCount)}
-              note={`${formatInteger(selectedMetric.successCount)} successful and ${formatInteger(selectedMetric.failureCount)} unsuccessful completed campaigns.`}
+              value={formatInteger(displayedMetric.campaignCount)}
+              note={`${formatInteger(displayedMetric.successCount)} successful and ${formatInteger(displayedMetric.failureCount)} unsuccessful completed campaigns.`}
             />
             <MetricCard
               label="Success rate"
-              value={formatPercent(selectedMetric.successRate)}
+              value={formatPercent(displayedMetric.successRate)}
               note="Calculated from completed outcomes only."
             />
             <MetricCard
               label="Median goal"
-              value={formatMoney(selectedMetric.medianGoalUsd)}
+              value={formatMoney(displayedMetric.medianGoalUsd)}
               note="Normalized USD using audited Kickstarter source rates."
             />
             <MetricCard
               label="Median pledged"
-              value={formatMoney(selectedMetric.medianPledgedUsd)}
+              value={formatMoney(displayedMetric.medianPledgedUsd)}
               note="The midpoint of normalized pledged totals."
             />
             <MetricCard
               label="Median backers"
-              value={formatInteger(selectedMetric.medianBackers)}
+              value={formatInteger(displayedMetric.medianBackers)}
               note="The midpoint backer count for this category slice."
             />
             <MetricCard
               label="Median average pledge"
-              value={formatMoney(selectedMetric.medianAveragePledgeUsd)}
+              value={formatMoney(displayedMetric.medianAveragePledgeUsd)}
               note="Normalized pledged amount divided by backers."
             />
             <MetricCard
               label="Median funding multiple"
-              value={formatMultiple(selectedMetric.medianFundingMultiple)}
+              value={formatMultiple(displayedMetric.medianFundingMultiple)}
               note="Pledged amount relative to each native campaign goal."
             />
             <MetricCard
               label="Money coverage"
               value={formatPercent(moneyCoverage)}
-              note={`${formatInteger(selectedMetric.moneyComparableCount)} campaigns have comparable normalized goal and pledged values.`}
+              note={`${formatInteger(displayedMetric.moneyComparableCount)} campaigns have comparable normalized goal and pledged values.`}
             />
           </div>
         </section>
@@ -411,13 +462,21 @@ export default async function ReportsPage({
               <p className="bs-kicker">Yearly activity</p>
               <h2 className="bs-title mt-2 text-2xl font-semibold">Launch volume and completed success rate</h2>
             </div>
-            <span className="bs-data-chip bg-slate-900 text-white">
-              {metricWindow === 'all_time' ? 'All recorded years' : 'Trailing window'}
-            </span>
+            <Link
+              href={`/reports?window=${metricWindow}&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}#category-roster`}
+              className={selectedYear === null ? 'bs-button-primary' : 'bs-button-secondary'}
+            >
+              {metricWindow === 'all_time' ? 'All recorded years' : 'Entire trailing window'}
+            </Link>
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {years.map((year) => (
-              <div key={year.launchYear} className="bs-panel-subtle">
+              <Link
+                key={year.launchYear}
+                href={`/reports?window=${metricWindow}&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}&year=${year.launchYear}#category-roster`}
+                className={`bs-panel-subtle block transition hover:-translate-y-0.5 hover:border-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${selectedYear === year.launchYear ? 'ring-2 ring-sky-400' : ''}`}
+                aria-pressed={selectedYear === year.launchYear}
+              >
                 <div className="flex items-center justify-between gap-4">
                   <p className="bs-kicker">{year.launchYear}</p>
                   <p className="font-mono text-sm font-semibold text-slate-900">
@@ -436,7 +495,7 @@ export default async function ReportsPage({
                     {formatPercent(year.successRate)}
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
@@ -447,7 +506,9 @@ export default async function ReportsPage({
             <p className="bs-kicker">Category roster</p>
             <h2 className="bs-title mt-2 text-2xl font-semibold">Compare category-level signals</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-              Open a category report for its complete metric set, then drill into the underlying campaigns when a signal deserves investigation.
+              {selectedYear === null
+                ? 'Open a category report for its complete metric set, then drill into the underlying campaigns when a signal deserves investigation.'
+                : `Showing categories with campaigns launched in ${selectedYear}. Category reports and supporting campaign links retain this year.`}
             </p>
             </div>
           </div>
@@ -458,14 +519,15 @@ export default async function ReportsPage({
           >
             <input type="hidden" name="window" value={metricWindow} />
             <input type="hidden" name="category" value={selectedMetric.dimensionKey} />
+            {selectedYear !== null ? <input type="hidden" name="year" value={selectedYear} /> : null}
             <label className="grid gap-2">
               <span className="bs-kicker">State</span>
               <select name="trend" defaultValue={trendFilter} className="bs-field">
                 {TREND_FILTERS.map((filter) => {
                   const count =
                     filter.value === 'all'
-                      ? categories.length
-                      : categories.filter((metric) => metric.trendLabel === filter.value).length
+                      ? categoryEntries.length
+                      : categoryEntries.filter(({ metric }) => metric.trendLabel === filter.value).length
                   return (
                     <option key={filter.value} value={filter.value}>
                       {filter.label} ({count})
@@ -492,12 +554,14 @@ export default async function ReportsPage({
             <button type="submit" className="bs-button-primary">Apply</button>
           </form>
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredCategories.map((metric) => (
+            {filteredCategories.map(({ metric, displayMetric }) => (
               <CategoryCard
                 key={metric.dimensionKey}
                 metric={metric}
+                displayMetric={displayMetric}
                 selected={metric.dimensionKey === selectedMetric.dimensionKey}
                 metricWindow={metricWindow}
+                selectedYear={selectedYear}
                 trendFilter={trendFilter}
                 sortBy={categorySort}
                 sortOrder={sortOrder}

@@ -65,8 +65,14 @@ export default function AppNavbar() {
                 Reporting View
               </Link>
               <Link
+                href="/admin/quality/research"
+                className={`bs-nav-link ${pathname?.startsWith('/admin/quality/research') ? 'bs-nav-link-active' : ''}`}
+              >
+                Research QA
+              </Link>
+              <Link
                 href="/admin"
-                className={`bs-nav-link ${pathname?.startsWith('/admin') ? 'bs-nav-link-active' : ''}`}
+                className={`bs-nav-link ${pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/quality/research') ? 'bs-nav-link-active' : ''}`}
               >
                 Admin View
               </Link>

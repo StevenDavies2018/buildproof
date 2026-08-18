@@ -247,11 +247,26 @@ export default async function AdminSubsetOverview({
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <Link href="/admin/quality" className="bs-button-primary">
+              Data quality
+            </Link>
             <Link href="/" className="bs-button-secondary">
               Back to overview
             </Link>
           </div>
         </div>
+
+        <nav className="mt-7 flex flex-wrap gap-2" aria-label="Admin sections">
+          <Link href="/admin" className="bs-button-primary" aria-current="page">
+            Subset curation
+          </Link>
+          <Link href="/admin/quality" className="bs-button-secondary">
+            Data quality
+          </Link>
+          <Link href="/admin/quality/research" className="bs-button-secondary">
+            Research QA
+          </Link>
+        </nav>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           <CountCard label="Subset campaigns" value={totalCampaigns} tone="amber" />

@@ -1,4 +1,5 @@
 import ResearchDashboard from '@/components/research-dashboard'
+import { SavedResearchPanel } from '@/components/saved-research'
 import { type DashboardFilters } from '@/lib/dashboard'
 
 export const preferredRegion = 'home'
@@ -57,8 +58,9 @@ export default async function Home({
 
   return (
     <main className="bs-shell">
-      <div className="bs-container">
+      <div className="mx-auto grid w-full max-w-[96rem] min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
         <ResearchDashboard filters={filters} compareIds={compareIds} />
+        <SavedResearchPanel />
       </div>
     </main>
   )

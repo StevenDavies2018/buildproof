@@ -6,6 +6,7 @@ import {
   type DashboardTrendRow,
   getDashboardOverview,
 } from '@/lib/dashboard'
+import { SaveCampaignButton, SaveResearchViewButton } from '@/components/saved-research'
 
 const MEMBERSHIP_OPTIONS = [
   { value: 'include_high', label: 'Included (high confidence)' },
@@ -414,6 +415,14 @@ export default async function ResearchDashboard({
   compareIds: number[]
 }) {
   const data = await getDashboardOverview(filters)
+  const savableFilters = Object.fromEntries(
+    Object.entries(data.filters).filter(([, value]) => value !== ''),
+  ) as Record<string, string>
+  const savedResearchLabel =
+    data.filters.search ||
+    data.filters.taxonomyLabel ||
+    data.filters.categorySlug ||
+    'TTRPG market slice'
 
   if (!data.configured) {
     return (
@@ -628,6 +637,11 @@ export default async function ResearchDashboard({
                     <Link href="/" className="bs-button-secondary border-white/20 bg-white/10 text-white hover:border-white/40 hover:text-white">
                       Reset filters
                     </Link>
+                    <SaveResearchViewButton
+                      filters={savableFilters}
+                      label={savedResearchLabel}
+                      className="bs-button-secondary border-white/20 bg-white/10 text-white hover:border-white/40 hover:text-white"
+                    />
                     <Link href="/admin" className="bs-button-secondary border-white/20 bg-white/10 text-white hover:border-white/40 hover:text-white">
                       Open admin view
                     </Link>
@@ -1162,6 +1176,12 @@ export default async function ResearchDashboard({
                   >
                     Open detail
                   </Link>
+                  <SaveCampaignButton
+                    campaignId={campaign.campaignId}
+                    projectName={campaign.projectName}
+                    categoryLabel={campaign.primaryClassificationLabel ?? campaign.categoryName}
+                    projectUrl={campaign.projectUrl}
+                  />
                   {campaign.projectUrl ? (
                     <a
                       href={campaign.projectUrl}

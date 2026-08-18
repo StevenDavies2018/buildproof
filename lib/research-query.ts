@@ -58,7 +58,7 @@ export type RankedResearchCandidate<T> = T & {
   matchedTerms: string[]
 }
 
-function normalizeText(value: string | null | undefined) {
+export function normalizeResearchText(value: string | null | undefined) {
   return (value ?? '')
     .toLowerCase()
     .replace(/d\s*&\s*d/g, 'dnd')
@@ -67,7 +67,7 @@ function normalizeText(value: string | null | undefined) {
 }
 
 export function tokenizeResearchIdea(idea: string) {
-  const terms = normalizeText(idea)
+  const terms = normalizeResearchText(idea)
     .split(/\s+/)
     .filter((term) => term.length >= 2 && !STOP_WORDS.has(term))
 
@@ -75,7 +75,7 @@ export function tokenizeResearchIdea(idea: string) {
 }
 
 function matchingTerms(terms: string[], value: string | null | undefined) {
-  const normalized = normalizeText(value)
+  const normalized = normalizeResearchText(value)
   return terms.filter((term) => normalized.includes(term))
 }
 
@@ -99,7 +99,7 @@ export function rankResearchCandidates<T extends ResearchCandidate>(
   context: ResearchRankingContext,
 ): Array<RankedResearchCandidate<T>> {
   const terms = tokenizeResearchIdea(context.idea)
-  const normalizedIdea = normalizeText(context.idea)
+  const normalizedIdea = normalizeResearchText(context.idea)
 
   return candidates
     .map((candidate) => {
@@ -130,7 +130,7 @@ export function rankResearchCandidates<T extends ResearchCandidate>(
       const reasons: string[] = []
       let score = 0
 
-      if (normalizedIdea.length >= 4 && normalizeText(candidate.projectName).includes(normalizedIdea)) {
+      if (normalizedIdea.length >= 4 && normalizeResearchText(candidate.projectName).includes(normalizedIdea)) {
         score += 30
         reasons.push('Project title contains the complete research phrase')
       }

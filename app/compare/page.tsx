@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { type CompareCampaign, getCompareCampaigns } from '@/lib/research'
+import { SaveComparisonButton } from '@/components/saved-research'
 
 export const dynamic = 'force-dynamic'
 
@@ -212,9 +213,18 @@ export default async function ComparePage({
                 This view is strongest when the selected campaigns share the same category. Money values are shown as both native amounts and normalized USD when that normalization is available.
               </p>
             </div>
-            <Link href="/" className="bs-button-secondary">
-              Back to user view
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              {campaigns.length >= 2 ? (
+                <SaveComparisonButton
+                  campaignIds={campaigns.map((campaign) => campaign.campaignId)}
+                  campaignNames={campaigns.map((campaign) => campaign.projectName)}
+                  categoryLabel={mixedCategories ? 'Mixed categories' : campaigns[0]?.primaryClassificationLabel ?? campaigns[0]?.categoryName ?? null}
+                />
+              ) : null}
+              <Link href="/" className="bs-button-secondary">
+                Back to user view
+              </Link>
+            </div>
           </div>
 
           {campaigns.length < 2 ? (

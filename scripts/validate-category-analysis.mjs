@@ -75,6 +75,43 @@ async function main() {
       ) duplicate_rows
     `
 
+    const [yearValidation] = await sql`
+      WITH year_rows AS (
+        SELECT year_row
+        FROM analysis_category_metrics acm
+        CROSS JOIN LATERAL jsonb_array_elements(acm.trend_details_json->'years') year_row
+        WHERE acm.subset_key = 'ttrpg_poc'
+          AND acm.analysis_version = ${CATEGORY_ANALYSIS_VERSION}
+      )
+      SELECT
+        COUNT(*)::int AS year_rows,
+        COUNT(*) FILTER (
+          WHERE NOT (year_row ?& ARRAY[
+            'launchYear',
+            'campaignCount',
+            'completedCount',
+            'successCount',
+            'failureCount',
+            'successRate',
+            'medianGoalUsd',
+            'medianPledgedUsd',
+            'medianBackers',
+            'medianAveragePledgeUsd',
+            'medianFundingMultiple',
+            'moneyComparableCount'
+          ])
+        )::int AS incomplete_year_rows,
+        COUNT(*) FILTER (
+          WHERE (year_row->>'moneyComparableCount')::int > (year_row->>'campaignCount')::int
+            OR (year_row->>'completedCount')::int > (year_row->>'campaignCount')::int
+            OR (
+              year_row->>'successRate' IS NOT NULL
+              AND (year_row->>'successRate')::numeric NOT BETWEEN 0 AND 100
+            )
+        )::int AS invalid_year_rows
+      FROM year_rows
+    `
+
     const topCategories = await sql`
       SELECT
         taxonomy_label,
@@ -98,6 +135,7 @@ async function main() {
       analysisVersion: CATEGORY_ANALYSIS_VERSION,
       summary: summary ?? null,
       duplicateGroups: duplicates.duplicate_groups,
+      yearlyMetrics: yearValidation,
       topCategories,
     }
     console.log(JSON.stringify(report, null, 2))
@@ -112,6 +150,9 @@ async function main() {
       summary.invalid_success_rates > 0 ||
       summary.invalid_trend_labels > 0 ||
       summary.invalid_trend_details > 0 ||
+      yearValidation.year_rows === 0 ||
+      yearValidation.incomplete_year_rows > 0 ||
+      yearValidation.invalid_year_rows > 0 ||
       duplicates.duplicate_groups > 0
 
     if (failed) process.exitCode = 1
