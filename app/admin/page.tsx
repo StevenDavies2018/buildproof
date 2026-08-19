@@ -1,5 +1,6 @@
 import AdminSubsetOverview from '@/components/admin-subset-overview'
 import { type AdminSubsetFilters } from '@/lib/admin'
+import { requireAdmin } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,10 +15,12 @@ export default async function AdminPage({
     durationBucket?: string
     rawState?: string
     minGoal?: string
+    minPledged?: string
     sortBy?: string
     sortDir?: string
   }>
 }) {
+  await requireAdmin()
   const resolvedSearchParams = (await searchParams) ?? {}
 
   const filters: AdminSubsetFilters = {
@@ -28,6 +31,7 @@ export default async function AdminPage({
     durationBucket: resolvedSearchParams.durationBucket,
     rawState: resolvedSearchParams.rawState,
     minGoal: resolvedSearchParams.minGoal,
+    minPledged: resolvedSearchParams.minPledged,
     sortBy: resolvedSearchParams.sortBy,
     sortDir: resolvedSearchParams.sortDir,
   }

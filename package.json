@@ -10,6 +10,7 @@
     "db:import:ttrpg": "node ./scripts/import-kickstarter-snapshot.mjs --file ../DataSet/Kickstarter_2026-08-12T08_12_02_805Z_deduped_ttrpg_subset.json --source-name \"Web Robots Kickstarter Dataset\" --snapshot-version 2026-08-12 --subset-key ttrpg_poc --subset-version 2026-08-16-initial --subset-status include_medium --subset-confidence include_medium --subset-reason \"Initial broad TTRPG/D&D subset import for Backer Sonar POC\"",
     "db:prune:ttrpg": "node ./scripts/prune-to-subset.mjs --subset-key ttrpg_poc",
     "db:status": "node ./scripts/db-status.mjs",
+    "db:account:role": "node ./scripts/set-account-role.mjs",
     "db:seed:taxonomy": "node ./scripts/seed-ttrpg-taxonomy.mjs",
     "db:classify:ttrpg": "node ./scripts/classify-ttrpg-campaigns.mjs --subset-key ttrpg_poc",
     "db:normalize:currency": "node ./scripts/normalize-campaign-currency.mjs",
@@ -37,6 +38,7 @@
     "postgres": "^3.4.5",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "resend": "^6.20.0",
     "tailwindcss": "3.3.3",
     "typescript": "^5"
   }

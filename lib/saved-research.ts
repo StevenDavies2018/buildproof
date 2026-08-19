@@ -54,7 +54,7 @@ export function researchViewIdentity(filters: Record<string, string>) {
 export function researchViewHref(filters: Record<string, string>) {
   const params = new URLSearchParams(normalizedEntries(filters))
   const query = params.toString()
-  return query ? `/?${query}` : '/'
+  return query ? `/dashboard?${query}` : '/dashboard'
 }
 
 export function comparisonIdentity(campaignIds: number[]) {
@@ -101,4 +101,47 @@ export function subscribeToSavedResearch(listener: () => void) {
     window.removeEventListener(SAVED_RESEARCH_CHANGED_EVENT, listener)
     window.removeEventListener('storage', listener)
   }
+}
+
+export async function loadAccountSavedResearch() {
+  const response = await fetch('/api/saved-research', { cache: 'no-store' })
+  if (!response.ok) return { authenticated: false, items: [] as SavedResearchItem[] }
+  const data = await response.json() as {
+    authenticated?: boolean
+    items?: Array<SavedResearchItem & { itemKey?: string; itemType?: SavedResearchItem['type']; payload?: Record<string, unknown> }>
+  }
+  const items = (data.items ?? []).map((item) => ({
+    ...item.payload,
+    id: item.itemKey ?? item.id,
+    type: item.itemType ?? item.type,
+    label: item.label,
+    href: item.href,
+    savedAt: item.savedAt,
+    snapshotVersion: item.snapshotVersion,
+  })) as SavedResearchItem[]
+  return { authenticated: data.authenticated === true, items }
+}
+
+export async function saveAccountResearchItem(item: SavedResearchItem) {
+  await fetch('/api/saved-research', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: item.id,
+      type: item.type,
+      label: item.label,
+      href: item.href,
+      snapshotVersion: item.snapshotVersion,
+      note: item.note,
+      payload: item,
+    }),
+  })
+}
+
+export async function removeAccountResearchItem(id: string) {
+  await fetch('/api/saved-research', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  })
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import type { AuthUser } from '@/lib/auth'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -21,7 +22,7 @@ function getInitialTheme(): ThemeMode {
     : 'light'
 }
 
-export default function AppNavbar() {
+export default function AppNavbar({ user }: { user: AuthUser | null }) {
   const pathname = usePathname()
   const [theme, setTheme] = useState<ThemeMode>('dark')
 
@@ -30,6 +31,8 @@ export default function AppNavbar() {
     setTheme(nextTheme)
     document.documentElement.dataset.theme = nextTheme
   }, [])
+
+  if (pathname === '/' || pathname?.startsWith('/account')) return null
 
   function toggleTheme() {
     const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark'
@@ -53,8 +56,8 @@ export default function AppNavbar() {
 
             <nav className="bs-nav-links">
               <Link
-                href="/"
-                className={`bs-nav-link ${pathname === '/' ? 'bs-nav-link-active' : ''}`}
+                href="/dashboard"
+                className={`bs-nav-link ${pathname?.startsWith('/dashboard') ? 'bs-nav-link-active' : ''}`}
               >
                 User View
               </Link>
@@ -64,17 +67,25 @@ export default function AppNavbar() {
               >
                 Reporting View
               </Link>
+              {user?.role === 'admin' ? <>
+                <Link
+                  href="/admin/quality/research"
+                  className={`bs-nav-link ${pathname?.startsWith('/admin/quality/research') ? 'bs-nav-link-active' : ''}`}
+                >
+                  Research QA
+                </Link>
+                <Link
+                  href="/admin"
+                  className={`bs-nav-link ${pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/quality/research') ? 'bs-nav-link-active' : ''}`}
+                >
+                  Admin View
+                </Link>
+              </> : null}
               <Link
-                href="/admin/quality/research"
-                className={`bs-nav-link ${pathname?.startsWith('/admin/quality/research') ? 'bs-nav-link-active' : ''}`}
+                href="/account"
+                className={`bs-nav-link ${pathname?.startsWith('/account') ? 'bs-nav-link-active' : ''}`}
               >
-                Research QA
-              </Link>
-              <Link
-                href="/admin"
-                className={`bs-nav-link ${pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/quality/research') ? 'bs-nav-link-active' : ''}`}
-              >
-                Admin View
+                Account
               </Link>
             </nav>
           </div>

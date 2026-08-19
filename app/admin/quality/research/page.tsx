@@ -3,6 +3,7 @@ import {
   getResearchBenchmarkReport,
   type ResearchBenchmarkResult,
 } from '@/lib/research-benchmarks'
+import { requireAdmin } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +18,7 @@ function verdictLabel(verdict: 'pass' | 'warning' | 'fail' | 'approved' | 'needs
 }
 
 function BenchmarkCard({ benchmark }: { benchmark: ResearchBenchmarkResult }) {
-  const userViewHref = `/?view=campaigns&search=${encodeURIComponent(benchmark.idea)}&sortBy=recommended`
+  const userViewHref = `/dashboard?view=campaigns&search=${encodeURIComponent(benchmark.idea)}&sortBy=recommended`
 
   return (
     <article className="bs-panel">
@@ -98,6 +99,7 @@ function BenchmarkCard({ benchmark }: { benchmark: ResearchBenchmarkResult }) {
 }
 
 export default async function ResearchBenchmarkPage() {
+  await requireAdmin()
   const report = await getResearchBenchmarkReport()
 
   if (!report.configured) {

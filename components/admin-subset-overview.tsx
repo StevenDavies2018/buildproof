@@ -304,16 +304,28 @@ export default async function AdminSubsetOverview({
             />
           </FilterField>
 
-          <FilterField label="Minimum Goal (USD)">
-            <input
-              type="number"
-              name="minGoal"
-              min="0"
-              step="1"
-              defaultValue={data.filters.minGoal ?? ''}
-              placeholder="10000"
-              className="bs-field"
-            />
+          <FilterField label="Minimum Pledged Range (USD)">
+            <select name="minPledged" defaultValue={data.filters.minPledged ?? ''} className="bs-field">
+              <option value="">Any pledged amount</option>
+              <option value="1000">$1,000 or more</option>
+              <option value="5000">$5,000 or more</option>
+              <option value="10000">$10,000 or more</option>
+              <option value="25000">$25,000 or more</option>
+              <option value="50000">$50,000 or more</option>
+              <option value="100000">$100,000 or more</option>
+            </select>
+          </FilterField>
+
+          <FilterField label="Minimum Goal Range (USD)">
+            <select name="minGoal" defaultValue={data.filters.minGoal ?? ''} className="bs-field">
+              <option value="">Any goal</option>
+              <option value="1000">$1,000 or more</option>
+              <option value="5000">$5,000 or more</option>
+              <option value="10000">$10,000 or more</option>
+              <option value="25000">$25,000 or more</option>
+              <option value="50000">$50,000 or more</option>
+              <option value="100000">$100,000 or more</option>
+            </select>
           </FilterField>
 
           <FilterField label="Membership">
@@ -322,7 +334,7 @@ export default async function AdminSubsetOverview({
               defaultValue={data.filters.membershipStatus ?? ''}
               className="bs-field"
             >
-              <option value="">All</option>
+              <option value="">None</option>
               {MEMBERSHIP_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}

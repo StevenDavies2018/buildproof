@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getAdminQualityOverview } from '@/lib/admin-quality'
+import { requireAdmin } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +42,7 @@ function QualityCard({
 }
 
 export default async function AdminQualityPage() {
+  await requireAdmin()
   const data = await getAdminQualityOverview()
 
   if (!data.configured) {

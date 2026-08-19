@@ -17,7 +17,9 @@ export type DashboardFilters = {
   durationBucket?: string
   rawState?: string
   minGoal?: string
+  minPledged?: string
   cardLimit?: string
+  cardOffset?: string
   sortBy?: string
   sortDir?: string
   years?: string
@@ -126,9 +128,13 @@ function toRequiredFilters(filters: DashboardFilters): Required<DashboardFilters
     durationBucket: filters.durationBucket?.trim() ?? '',
     rawState: filters.rawState?.trim() ?? '',
     minGoal: filters.minGoal?.trim() ?? '',
+    minPledged: filters.minPledged?.trim() ?? '',
     cardLimit: ['12', '24', '48', '100'].includes(filters.cardLimit ?? '')
       ? filters.cardLimit!
       : '12',
+    cardOffset: Number.isInteger(Number(filters.cardOffset)) && Number(filters.cardOffset) >= 0
+      ? String(Math.floor(Number(filters.cardOffset)))
+      : '0',
     sortBy: [
       'recommended',
       'projectName',
@@ -231,7 +237,12 @@ export async function getDashboardOverview(
       filters.minGoal !== '' && Number.isFinite(Number(filters.minGoal))
         ? Number(filters.minGoal)
         : null
+    const minPledgedValue =
+      filters.minPledged !== '' && Number.isFinite(Number(filters.minPledged))
+        ? Number(filters.minPledged)
+        : null
     const cardLimitValue = Number(filters.cardLimit)
+    const cardOffsetValue = Number(filters.cardOffset)
     const searchTerms = tokenizeResearchIdea(filters.search)
     const searchPatterns = searchTerms.flatMap((term) =>
       term === 'dnd'
@@ -304,7 +315,6 @@ export async function getDashboardOverview(
               FROM campaign_classifications cc_filter
               INNER JOIN taxonomy_nodes tn_filter ON tn_filter.id = cc_filter.taxonomy_node_id
               WHERE cc_filter.campaign_id = cr.id
-                AND cc_filter.is_primary = true
                 AND tn_filter.label = ${filters.taxonomyLabel}
             )
           `
@@ -339,6 +349,8 @@ export async function getDashboardOverview(
 
     const minGoalFilter =
       minGoalValue === null ? sql`` : sql`AND cmn.usd_goal >= ${minGoalValue}`
+    const minPledgedFilter =
+      minPledgedValue === null ? sql`` : sql`AND cmn.usd_pledged >= ${minPledgedValue}`
 
     const outcomeFilter =
       filters.includeFailures === 'false'
@@ -371,6 +383,7 @@ export async function getDashboardOverview(
         ${rawStateFilter}
         ${durationFilter}
         ${minGoalFilter}
+        ${minPledgedFilter}
         ${outcomeFilter}
         ${launchWindowFilter}
         ${minimumBackersFilter}
@@ -523,7 +536,9 @@ export async function getDashboardOverview(
     `
 
     const candidateLimit =
-      searchTerms.length > 0 && filters.sortBy === 'recommended' ? 4000 : cardLimitValue
+      searchTerms.length > 0 && filters.sortBy === 'recommended'
+        ? 4000
+        : cardLimitValue
     const campaignCandidates = await sql<DashboardCampaignCandidate[]>`
       SELECT
         cr.id AS "campaignId",
@@ -597,6 +612,7 @@ export async function getDashboardOverview(
         cn.is_fully_researchable
       ORDER BY ${sql.unsafe(cardOrderBy)}
       LIMIT ${candidateLimit}
+      OFFSET ${searchTerms.length > 0 && filters.sortBy === 'recommended' ? 0 : cardOffsetValue}
     `
 
     const rankedCandidates = rankResearchCandidates(campaignCandidates, {
@@ -606,7 +622,7 @@ export async function getDashboardOverview(
     })
     const campaigns =
       searchTerms.length > 0 && filters.sortBy === 'recommended'
-        ? rankedCandidates.slice(0, cardLimitValue)
+        ? rankedCandidates.slice(cardOffsetValue, cardOffsetValue + cardLimitValue)
         : campaignCandidates.map((candidate) => {
             const ranked = rankedCandidates.find((row) => row.campaignId === candidate.campaignId)
             return ranked ?? {

@@ -1,66 +1,70 @@
-import ResearchDashboard from '@/components/research-dashboard'
-import { SavedResearchPanel } from '@/components/saved-research'
-import { type DashboardFilters } from '@/lib/dashboard'
+import Link from 'next/link'
+import { getDashboardOverview } from '@/lib/dashboard'
 
-export const preferredRegion = 'home'
 export const dynamic = 'force-dynamic'
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams?: Promise<{
-    view?: string
-    search?: string
-    membershipStatus?: string
-    confidenceLabel?: string
-    categorySlug?: string
-    taxonomyLabel?: string
-    durationBucket?: string
-    rawState?: string
-    minGoal?: string
-    cardLimit?: string
-    sortBy?: string
-    sortDir?: string
-    years?: string
-    compare?: string
-    launchWindow?: string
-    minimumBackers?: string
-    includeFailures?: string
-    fullyResearchableOnly?: string
-  }>
-}) {
-  const resolvedSearchParams = (await searchParams) ?? {}
+function formatInteger(value: number) {
+  return new Intl.NumberFormat('en-US').format(value)
+}
 
-  const filters: DashboardFilters = {
-    view: resolvedSearchParams.view,
-    search: resolvedSearchParams.search,
-    membershipStatus: resolvedSearchParams.membershipStatus,
-    confidenceLabel: resolvedSearchParams.confidenceLabel,
-    categorySlug: resolvedSearchParams.categorySlug,
-    taxonomyLabel: resolvedSearchParams.taxonomyLabel,
-    durationBucket: resolvedSearchParams.durationBucket,
-    rawState: resolvedSearchParams.rawState,
-    minGoal: resolvedSearchParams.minGoal,
-    cardLimit: resolvedSearchParams.cardLimit,
-    sortBy: resolvedSearchParams.sortBy,
-    sortDir: resolvedSearchParams.sortDir,
-    years: resolvedSearchParams.years,
-    launchWindow: resolvedSearchParams.launchWindow,
-    minimumBackers: resolvedSearchParams.minimumBackers,
-    includeFailures: resolvedSearchParams.includeFailures,
-    fullyResearchableOnly: resolvedSearchParams.fullyResearchableOnly,
-  }
-  const compareIds = (resolvedSearchParams.compare ?? '')
-    .split(',')
-    .map((value) => Number.parseInt(value.trim(), 10))
-    .filter((value) => Number.isInteger(value))
-    .slice(0, 4)
+function formatPercent(value: number | null) {
+  return value === null ? 'n/a' : `${value.toFixed(1)}%`
+}
+
+function formatCoverage(value: number, total: number) {
+  return total ? `${((value / total) * 100).toFixed(1)}%` : 'n/a'
+}
+
+export default async function LandingPage() {
+  const data = await getDashboardOverview({ cardLimit: '12' })
+  const metrics = [
+    ['Campaigns analyzed', formatInteger(data.summary.comparableCampaigns), 'TTRPG campaigns in the current research slice'],
+    ['Success rate', formatPercent(data.summary.successRate), 'Completed campaigns that reached their goal'],
+    ['Research coverage', formatCoverage(data.summary.researchableCampaignCount, data.summary.comparableCampaigns), 'Campaigns with enough source detail to inspect'],
+    ['Money comparability', formatCoverage(data.summary.moneyComparableCount, data.summary.comparableCampaigns), 'Campaigns with trustworthy normalized USD values'],
+  ]
 
   return (
-    <main className="bs-shell">
-      <div className="mx-auto grid w-full max-w-[96rem] min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
-        <ResearchDashboard filters={filters} compareIds={compareIds} />
-        <SavedResearchPanel />
+    <main className="bs-shell min-h-0 overflow-hidden pb-2 pt-6 md:pb-3 md:pt-8">
+      <div className="bs-container max-w-7xl gap-5">
+        <section className="relative overflow-hidden rounded-[2.5rem] border border-sky-400/30 bg-[linear-gradient(135deg,#0f172a_0%,#172554_48%,#0369a1_100%)] px-7 py-4 text-white shadow-[0_24px_80px_rgba(2,6,23,0.35)] md:px-12 md:py-5">
+          <div className="pointer-events-none absolute -right-24 -top-28 h-80 w-80 rounded-full bg-sky-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-amber-400/10 blur-3xl" />
+          <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)] lg:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-200">Backer Sonar</p>
+              <h1 className="mt-4 max-w-4xl font-mono text-4xl font-semibold leading-tight tracking-tight md:text-6xl">Find the signal before you build.</h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200 md:text-lg">A practical research workspace for people deciding what to launch on Kickstarter. Explore real campaign history, compare same-category projects, and separate useful evidence from noise.</p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/account" className="inline-flex items-center rounded-full border border-white/40 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">Create an account</Link>
+                <Link href="/account" className="inline-flex items-center rounded-full px-5 py-3 text-sm font-semibold text-sky-100 transition hover:bg-white/10">Sign in</Link>
+              </div>
+              <p className="mt-4 text-xs text-slate-300">Currently focused on the TTRPG proof-of-concept dataset.</p>
+            </div>
+            <div className="rounded-[2rem] border border-white/25 bg-slate-950/30 p-4 backdrop-blur">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-200">TTRPG market snapshot</p>
+              <div className="mt-3 grid gap-2">
+                {metrics.map(([label, value, text]) => (
+                  <div key={label} className="rounded-2xl border border-white/10 bg-white/10 p-3">
+                    <div className="flex items-center justify-between gap-3"><span className="text-sm font-semibold">{label}</span><span className="font-mono text-lg font-semibold text-white">{value}</span></div>
+                    <p className="mt-1 text-sm leading-5 text-slate-300">{text}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] text-slate-300">Source-linked Kickstarter data · deterministic calculations · current TTRPG POC slice</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <article className="bs-panel p-6"><p className="bs-kicker">01 / Search</p><h2 className="bs-title mt-2 text-2xl font-semibold">Start with an idea</h2><p className="mt-2 text-sm leading-6 text-slate-600">Describe the product you are considering and get deterministic, explainable campaign matches.</p></article>
+          <article className="bs-panel p-6"><p className="bs-kicker">02 / Compare</p><h2 className="bs-title mt-2 text-2xl font-semibold">Read the market slice</h2><p className="mt-2 text-sm leading-6 text-slate-600">Use category, year, goal, pledged, backer, and duration signals to understand the field.</p></article>
+          <article className="bs-panel p-6"><p className="bs-kicker">03 / Decide</p><h2 className="bs-title mt-2 text-2xl font-semibold">Keep the evidence</h2><p className="mt-2 text-sm leading-6 text-slate-600">Save campaigns, research views, and comparisons for the next decision in your process.</p></article>
+        </section>
+
+        <section className="bs-panel flex flex-col gap-6 p-5 md:flex-row md:items-center md:justify-between">
+          <div><p className="bs-kicker">Built for clear decisions</p><h2 className="bs-title mt-2 text-3xl font-semibold">No black-box score required.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Backer Sonar starts with source data, explicit filters, reproducible calculations, and visible provenance. AI may come later, but the evidence comes first.</p></div>
+        </section>
       </div>
     </main>
   )

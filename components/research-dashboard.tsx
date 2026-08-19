@@ -253,7 +253,7 @@ function TaxonomyBar({
 }) {
   const percentage = maxCount > 0 ? (row.campaignCount / maxCount) * 100 : 0
   const isActive = activeLabel === row.label
-  const href = `/${buildDashboardQueryString({
+  const href = `/dashboard${buildDashboardQueryString({
     ...filters,
     taxonomyLabel: isActive ? '' : row.label,
   })}`
@@ -431,9 +431,11 @@ function OutcomeVisual({
 export default async function ResearchDashboard({
   filters,
   compareIds,
+  startMode = false,
 }: {
   filters: DashboardFilters
   compareIds: number[]
+  startMode?: boolean
 }) {
   const data = await getDashboardOverview(filters)
   const savableFilters = Object.fromEntries(
@@ -445,7 +447,7 @@ export default async function ResearchDashboard({
     data.filters.categorySlug ||
     'TTRPG market slice'
 
-  const retryHref = `/${buildDashboardQueryString(data.filters)}`
+  const retryHref = `/dashboard${buildDashboardQueryString(data.filters)}`
 
   if (!data.configured) {
     return (
@@ -516,6 +518,13 @@ export default async function ResearchDashboard({
   const compareSelectionMixed = selectedCompareCategorySet.size > 1
   const activeView = data.filters.view === 'analysis' ? 'analysis' : 'campaigns'
   const compareQueryValue = compareIds.length ? compareIds.join(',') : undefined
+  const hasUserSelection = Boolean(
+    filters.search || filters.categorySlug || filters.taxonomyLabel || filters.durationBucket ||
+    filters.rawState || filters.minGoal || filters.minPledged || filters.years || filters.launchWindow ||
+    filters.minimumBackers || filters.includeFailures === 'false' || filters.fullyResearchableOnly === 'true' ||
+    filters.view === 'analysis' || compareIds.length,
+  )
+  const showResults = !startMode || hasUserSelection
 
   return (
     <section className="grid gap-8">
@@ -571,7 +580,7 @@ export default async function ResearchDashboard({
                   </div>
                 </div>
 
-                <form id="research-filters" method="get" action="/" className="space-y-5">
+                <form id="research-filters" method="get" action="/dashboard" className="space-y-5">
                   <input type="hidden" name="view" value={data.filters.view} />
                   <input type="hidden" name="cardLimit" value={data.filters.cardLimit} />
                   <input type="hidden" name="sortBy" value={data.filters.sortBy} />
@@ -612,7 +621,7 @@ export default async function ResearchDashboard({
                         defaultValue={data.filters.categorySlug}
                         className="bs-field bs-field-dark"
                       >
-                        <option value="">All categories in the TTRPG proof-of-concept</option>
+                        <option value="">None</option>
                         {data.categories.map((category) => (
                           <option key={category.categorySlug} value={category.categorySlug}>
                             {category.categorySlug}
@@ -658,17 +667,32 @@ export default async function ResearchDashboard({
 
                     <label className="grid gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
-                        Minimum goal (USD)
+                        Minimum goal range (USD)
                       </span>
-                      <input
-                        type="number"
-                        name="minGoal"
-                        min="0"
-                        step="1"
-                        defaultValue={data.filters.minGoal}
-                        placeholder="10000"
-                        className="bs-field bs-field-dark"
-                      />
+                      <select name="minGoal" defaultValue={data.filters.minGoal ?? ''} className="bs-field bs-field-dark">
+                        <option value="">Any goal</option>
+                        <option value="1000">$1,000 or more</option>
+                        <option value="5000">$5,000 or more</option>
+                        <option value="10000">$10,000 or more</option>
+                        <option value="25000">$25,000 or more</option>
+                        <option value="50000">$50,000 or more</option>
+                        <option value="100000">$100,000 or more</option>
+                      </select>
+                    </label>
+
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
+                        Minimum pledged range (USD)
+                      </span>
+                      <select name="minPledged" defaultValue={data.filters.minPledged ?? ''} className="bs-field bs-field-dark">
+                        <option value="">Any pledged amount</option>
+                        <option value="1000">$1,000 or more</option>
+                        <option value="5000">$5,000 or more</option>
+                        <option value="10000">$10,000 or more</option>
+                        <option value="25000">$25,000 or more</option>
+                        <option value="50000">$50,000 or more</option>
+                        <option value="100000">$100,000 or more</option>
+                      </select>
                     </label>
 
                   </div>
@@ -677,7 +701,7 @@ export default async function ResearchDashboard({
                     <button type="submit" className="bs-button-primary">
                       Apply filters
                     </button>
-                    <Link href="/" className="bs-button-secondary border-white/20 bg-white/10 text-white hover:border-white/40 hover:text-white">
+                    <Link href="/dashboard" className="bs-button-secondary border-white/20 bg-white/10 text-white hover:border-white/40 hover:text-white">
                       Reset filters
                     </Link>
                     <SaveResearchViewButton
@@ -696,6 +720,7 @@ export default async function ResearchDashboard({
         </div>
       </section>
 
+      {showResults ? <>
       <section className="rounded-[1.75rem] border border-white/12 bg-white/10 p-5 backdrop-blur">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-100/70">
           Read this slice
@@ -762,7 +787,7 @@ export default async function ResearchDashboard({
         className="flex flex-col gap-3 rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-3 sm:flex-row"
       >
         <Link
-          href={`/${buildDashboardQueryString({
+          href={`/dashboard${buildDashboardQueryString({
             ...data.filters,
             view: 'campaigns',
             compare: compareQueryValue,
@@ -773,7 +798,7 @@ export default async function ResearchDashboard({
           Campaign research
         </Link>
         <Link
-          href={`/${buildDashboardQueryString({
+          href={`/dashboard${buildDashboardQueryString({
             ...data.filters,
             view: 'analysis',
             compare: compareQueryValue,
@@ -847,7 +872,7 @@ export default async function ResearchDashboard({
               </span>
               {activeTaxonomyLabel ? (
                 <Link
-                  href={`/${buildDashboardQueryString({
+                  href={`/dashboard${buildDashboardQueryString({
                     ...data.filters,
                     taxonomyLabel: '',
                   })}`}
@@ -894,7 +919,7 @@ export default async function ResearchDashboard({
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
-            href={`/${buildDashboardQueryString({
+            href={`/dashboard${buildDashboardQueryString({
               ...data.filters,
               years: '',
             })}`}
@@ -913,7 +938,7 @@ export default async function ResearchDashboard({
             return (
               <Link
                 key={year}
-                href={`/${buildDashboardQueryString({
+            href={`/dashboard${buildDashboardQueryString({
                   ...data.filters,
                   years: nextYears.join(','),
                 })}`}
@@ -986,7 +1011,7 @@ export default async function ResearchDashboard({
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="bs-data-chip bg-sky-100 text-sky-800">
-              {formatInteger(data.campaigns.length)} of {formatInteger(data.summary.comparableCampaigns)} shown
+              Showing {data.campaigns.length ? formatInteger(Number(data.filters.cardOffset) + 1) : '0'}-{formatInteger(Number(data.filters.cardOffset) + data.campaigns.length)} of {formatInteger(data.summary.comparableCampaigns)}
             </span>
             <span className="bs-data-chip bg-slate-900 text-white">
               {formatCardSort(data.filters.sortBy, data.filters.sortDir)}
@@ -996,11 +1021,11 @@ export default async function ResearchDashboard({
 
         <form
           method="get"
-          action="/"
+          action="/dashboard"
           className="mt-5 grid gap-3 rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-4 md:grid-cols-[0.7fr,1fr,1fr,auto] md:items-end"
         >
           {Object.entries(data.filters).map(([name, value]) =>
-            value && !['cardLimit', 'sortBy', 'sortDir'].includes(name) ? (
+            value && !['cardLimit', 'cardOffset', 'sortBy', 'sortDir'].includes(name) ? (
               <input key={name} type="hidden" name={name} value={value} />
             ) : null,
           )}
@@ -1016,6 +1041,7 @@ export default async function ResearchDashboard({
               <option value="100">100 cards</option>
             </select>
           </label>
+          <input type="hidden" name="cardOffset" value="0" />
           <label className="grid gap-2">
             <span className="bs-kicker">Sort cards by</span>
             <select name="sortBy" defaultValue={data.filters.sortBy} className="bs-field">
@@ -1073,7 +1099,7 @@ export default async function ResearchDashboard({
                 </Link>
               ) : null}
               <Link
-                href={`/${buildDashboardQueryString({
+                href={`/dashboard${buildDashboardQueryString({
                   ...data.filters,
                   compare: '',
                 } as DashboardFilters & { compare?: string })}`}
@@ -1086,7 +1112,7 @@ export default async function ResearchDashboard({
         ) : null}
 
         <div className="mt-6 grid gap-4 xl:grid-cols-2">
-          {data.campaigns.length ? (
+        {data.campaigns.length ? (
             data.campaigns.map((campaign) => {
               const isSelected = selectedCompareIds.has(campaign.campaignId)
               const categoryMismatch =
@@ -1118,6 +1144,15 @@ export default async function ResearchDashboard({
                   <span className={`bs-data-chip ${getCampaignCompleteness(campaign) >= 6 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                     Data {getCampaignCompleteness(campaign)}/7
                   </span>
+                  {campaign.goalUsd !== null && campaign.pledgedUsd !== null && campaign.moneyRateConfidence === 'high' ? (
+                    <span className="bs-data-chip bg-emerald-100 text-emerald-800">
+                      USD comparable
+                    </span>
+                  ) : (
+                    <span className="bs-data-chip bg-amber-100 text-amber-800">
+                      Native money only
+                    </span>
+                  )}
                   {data.filters.search ? (
                     <span className="bs-data-chip bg-blue-100 text-blue-900">
                       Relevance {campaign.relevanceScore}
@@ -1137,7 +1172,7 @@ export default async function ResearchDashboard({
 
                 <h3 className="bs-title mt-4 text-2xl font-semibold">
                   <Link
-                    href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/${buildDashboardQueryString(data.filters)}`)}`}
+                      href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/dashboard${buildDashboardQueryString(data.filters)}`)}`}
                     className="hover:underline"
                   >
                     {campaign.projectName}
@@ -1177,10 +1212,10 @@ export default async function ResearchDashboard({
                   </div>
                 ) : null}
 
-                <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-5">
+                <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3">
                   <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Goal</p>
-                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
+                    <p className="mt-2 whitespace-nowrap text-lg font-semibold text-slate-950">
                       {formatNativeMoney(campaign.goal, campaign.currency)}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
@@ -1189,7 +1224,7 @@ export default async function ResearchDashboard({
                   </div>
                   <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Pledged</p>
-                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
+                    <p className="mt-2 whitespace-nowrap text-lg font-semibold text-slate-950">
                       {formatNativeMoney(campaign.pledged, campaign.currency)}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
@@ -1198,19 +1233,19 @@ export default async function ResearchDashboard({
                   </div>
                   <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Backers</p>
-                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
+                    <p className="mt-2 whitespace-nowrap text-lg font-semibold text-slate-950">
                       {formatInteger(campaign.backersCount)}
                     </p>
                   </div>
                   <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Funding multiple</p>
-                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
+                    <p className="mt-2 whitespace-nowrap text-lg font-semibold text-slate-950">
                       {formatMultiple(campaign.fundingMultiple)}
                     </p>
                   </div>
                   <div className="min-w-0 rounded-[1.2rem] border border-bs-border bg-white px-4 py-3">
                     <p className="bs-kicker">Duration</p>
-                    <p className="mt-2 break-words text-lg font-semibold text-slate-950">
+                    <p className="mt-2 whitespace-nowrap text-lg font-semibold text-slate-950">
                       {campaign.campaignDurationDays === null
                         ? 'n/a'
                         : `${formatInteger(campaign.campaignDurationDays)}d`}
@@ -1220,7 +1255,7 @@ export default async function ResearchDashboard({
 
                 <div className="mt-5 flex flex-wrap gap-3">
                   <Link
-                    href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/${buildDashboardQueryString(data.filters)}`)}`}
+                      href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/dashboard${buildDashboardQueryString(data.filters)}`)}`}
                     className="bs-button-secondary"
                   >
                     Open detail
@@ -1251,7 +1286,7 @@ export default async function ResearchDashboard({
                     </span>
                   ) : (
                     <Link
-                      href={`/${buildDashboardQueryString({
+                      href={`/dashboard${buildDashboardQueryString({
                         ...data.filters,
                         compare: isSelected
                           ? compareIds.filter((id) => id !== campaign.campaignId).join(',')
@@ -1269,7 +1304,7 @@ export default async function ResearchDashboard({
                   )}
                   {campaign.categorySlug ? (
                     <Link
-                      href={`/?categorySlug=${encodeURIComponent(campaign.categorySlug)}`}
+                      href={`/dashboard?categorySlug=${encodeURIComponent(campaign.categorySlug)}`}
                       className="bs-button-secondary"
                     >
                       Explore same category
@@ -1294,7 +1329,25 @@ export default async function ResearchDashboard({
             </div>
           )}
         </div>
+        {Number(data.filters.cardOffset) + data.campaigns.length < data.summary.comparableCampaigns ? (
+          <form method="get" action="/dashboard" className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-4">
+            {Object.entries(data.filters).map(([name, value]) =>
+              value && !['cardOffset', 'sortBy', 'sortDir'].includes(name) ? (
+                <input key={name} type="hidden" name={name} value={value} />
+              ) : null,
+            )}
+            {compareIds.length ? <input type="hidden" name="compare" value={compareIds.join(',')} /> : null}
+            <input type="hidden" name="cardOffset" value={String(Number(data.filters.cardOffset) + data.campaigns.length)} />
+            <p className="text-sm text-slate-600">
+              More campaigns are available in this result set.
+            </p>
+            <button type="submit" className="bs-button-primary">
+              Load next {data.filters.cardLimit}
+            </button>
+          </form>
+        ) : null}
       </section>
+      </> : null}
     </section>
   )
 }

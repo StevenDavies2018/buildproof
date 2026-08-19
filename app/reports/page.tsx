@@ -256,8 +256,13 @@ export default async function ReportsPage({
     ? (resolvedSearchParams.sort as CategorySort)
     : 'campaigns'
   const sortOrder: SortOrder = resolvedSearchParams.order === 'asc' ? 'asc' : 'desc'
-  const requestedMetric =
-    metrics.find((metric) => metric.dimensionKey === requestedCategory) ?? metrics[0]
+  const selectedCategoryMetric = metrics.find(
+    (metric) =>
+      metric.dimensionKey === requestedCategory ||
+      metric.taxonomyLabel.toLowerCase() === requestedCategory.toLowerCase(),
+  )
+  const requestedMetric = selectedCategoryMetric ?? metrics[0]
+  const hasSelectedCategory = requestedCategory !== 'all' && Boolean(selectedCategoryMetric)
 
   if (!requestedMetric) {
     return (
@@ -344,7 +349,7 @@ export default async function ReportsPage({
   return (
     <main className="bs-shell">
       <div className="bs-container grid gap-8">
-        <section className="overflow-hidden rounded-[2rem] border border-blue-300/30 bg-[linear-gradient(135deg,_rgba(15,23,42,0.98)_0%,_rgba(30,64,175,0.96)_58%,_rgba(14,165,233,0.88)_100%)] p-8 shadow-[0_24px_60px_rgba(30,64,175,0.18)] md:p-10">
+        {hasSelectedCategory ? <section className="overflow-hidden rounded-[2rem] border border-blue-300/30 bg-[linear-gradient(135deg,_rgba(15,23,42,0.98)_0%,_rgba(30,64,175,0.96)_58%,_rgba(14,165,233,0.88)_100%)] p-8 shadow-[0_24px_60px_rgba(30,64,175,0.18)] md:p-10">
           <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-4xl">
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-blue-100/80">
@@ -366,7 +371,7 @@ export default async function ReportsPage({
               <p>Calculated: {new Date(selectedMetric.calculatedAt).toLocaleDateString('en-US')}</p>
             </div>
           </div>
-        </section>
+        </section> : null}
 
         <section className="bs-panel">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -406,7 +411,7 @@ export default async function ReportsPage({
             <label className="grid gap-2">
               <span className="bs-kicker">Subcategory</span>
               <select name="category" defaultValue={selectedMetric.dimensionKey} className="bs-field">
-                <option value="all">All TTRPG subcategories</option>
+                <option value="all">None</option>
                 {Array.from(categoryGroups.entries()).map(([parent, entries]) => (
                   <optgroup key={parent} label={parent}>
                     {entries.map(({ metric, displayMetric }) => (
@@ -422,6 +427,7 @@ export default async function ReportsPage({
           </form>
         </section>
 
+        {hasSelectedCategory ? <>
         <section className="order-4 bs-panel">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
@@ -531,11 +537,19 @@ export default async function ReportsPage({
           </div>
         </section>
 
-        <section id="category-roster" className="order-3 bs-panel scroll-mt-28">
+        <details id="category-roster" className="order-3 bs-panel scroll-mt-28">
+          <summary className="cursor-pointer list-none">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="bs-kicker">Category roster</p>
+                <h2 className="bs-title mt-2 text-2xl font-semibold">Compare category-level signals</h2>
+              </div>
+              <span className="bs-accordion-hint">Click to expand <span aria-hidden="true" className="bs-accordion-chevron" /></span>
+            </div>
+            <p className="mt-3 text-sm text-slate-600">Expand to filter and compare all category groups.</p>
+          </summary>
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
-            <p className="bs-kicker">Category roster</p>
-            <h2 className="bs-title mt-2 text-2xl font-semibold">Compare category-level signals</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
               {selectedYear === null
                 ? 'Open a category report for its complete metric set, then drill into the underlying campaigns when a signal deserves investigation.'
@@ -604,8 +618,7 @@ export default async function ReportsPage({
               No categories match this trend status in the selected reporting window.
             </div>
           ) : null}
-        </section>
-
+        </details>
         <section className="order-5 bs-panel">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
@@ -682,6 +695,7 @@ export default async function ReportsPage({
             </div>
           )}
         </section>
+        </> : null}
       </div>
     </main>
   )

@@ -42,6 +42,7 @@ export type AdminSubsetFilters = {
   durationBucket?: string
   rawState?: string
   minGoal?: string
+  minPledged?: string
   sortBy?: string
   sortDir?: string
 }
@@ -123,10 +124,15 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
     const durationBucket = filters.durationBucket?.trim() ?? ''
     const rawState = filters.rawState?.trim() ?? ''
     const minGoal = filters.minGoal?.trim() ?? ''
+    const minPledged = filters.minPledged?.trim() ?? ''
     const minGoalValue =
       minGoal !== '' && Number.isFinite(Number(minGoal)) ? Number(minGoal) : null
     const minGoalFilter =
       minGoalValue === null ? sql`` : sql`AND cmn.usd_goal >= ${minGoalValue}`
+    const minPledgedValue =
+      minPledged !== '' && Number.isFinite(Number(minPledged)) ? Number(minPledged) : null
+    const minPledgedFilter =
+      minPledgedValue === null ? sql`` : sql`AND cmn.usd_pledged >= ${minPledgedValue}`
     const sortBy =
       filters.sortBy && SORT_COLUMN_MAP[filters.sortBy]
         ? filters.sortBy
@@ -185,6 +191,7 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
         AND (${categorySlug} = '' OR COALESCE(cr.kickstarter_category_slug, '') = ${categorySlug})
         AND (${rawState} = '' OR COALESCE(cr.raw_state, '') = ${rawState})
         ${minGoalFilter}
+        ${minPledgedFilter}
         AND (
           ${durationBucket} = ''
           OR (${durationBucket} = 'short' AND cn.campaign_duration_days IS NOT NULL AND cn.campaign_duration_days <= 21)
@@ -212,6 +219,7 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
         durationBucket,
         rawState,
         minGoal: minGoalValue === null ? '' : minGoal,
+        minPledged: minPledgedValue === null ? '' : minPledged,
         sortBy,
         sortDir,
       },

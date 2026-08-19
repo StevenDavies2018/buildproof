@@ -9,6 +9,9 @@ import {
   researchViewHref,
   researchViewIdentity,
   saveResearchItem,
+  loadAccountSavedResearch,
+  removeAccountResearchItem,
+  saveAccountResearchItem,
   subscribeToSavedResearch,
   type SavedResearchItem,
 } from '@/lib/saved-research'
@@ -17,14 +20,19 @@ const SNAPSHOT_VERSION = '2026-08-12'
 
 function useSavedItems() {
   const [items, setItems] = useState<SavedResearchItem[]>([])
+  const [authenticated, setAuthenticated] = useState(false)
 
   useEffect(() => {
     const refresh = () => setItems(readSavedResearch())
     refresh()
+    loadAccountSavedResearch().then((accountItems) => {
+      setAuthenticated(accountItems.authenticated)
+      if (accountItems.authenticated) setItems(accountItems.items)
+    }).catch(() => undefined)
     return subscribeToSavedResearch(refresh)
   }, [])
 
-  return items
+  return { items, authenticated }
 }
 
 function SaveToggle({
@@ -38,7 +46,7 @@ function SaveToggle({
   savedLabel: string
   className?: string
 }) {
-  const items = useSavedItems()
+  const { items, authenticated } = useSavedItems()
   const isSaved = items.some((existing) => existing.id === item.id)
 
   return (
@@ -46,7 +54,15 @@ function SaveToggle({
       type="button"
       className={isSaved ? 'bs-button-primary' : className}
       aria-pressed={isSaved}
-      onClick={() => (isSaved ? removeResearchItem(item.id) : saveResearchItem(item))}
+      onClick={() => {
+        if (isSaved) {
+          removeResearchItem(item.id)
+          if (authenticated) void removeAccountResearchItem(item.id)
+        } else {
+          saveResearchItem(item)
+          if (authenticated) void saveAccountResearchItem(item)
+        }
+      }}
     >
       {isSaved ? savedLabel : saveLabel}
     </button>
@@ -132,7 +148,7 @@ export function SaveComparisonButton({
   )
 }
 
-function SavedItemsContent({ items, onClose }: { items: SavedResearchItem[]; onClose?: () => void }) {
+function SavedItemsContent({ items, authenticated, onClose }: { items: SavedResearchItem[]; authenticated: boolean; onClose?: () => void }) {
   const groups = [
     { type: 'research', label: 'Research views' },
     { type: 'campaign', label: 'Campaigns' },
@@ -170,7 +186,7 @@ function SavedItemsContent({ items, onClose }: { items: SavedResearchItem[]; onC
                     </Link>
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <span className="text-[11px] text-slate-500">Snapshot {item.snapshotVersion}</span>
-                      <button type="button" onClick={() => removeResearchItem(item.id)} className="text-xs text-slate-500 underline underline-offset-4">
+                      <button type="button" onClick={() => { removeResearchItem(item.id); if (authenticated) void removeAccountResearchItem(item.id) }} className="text-xs text-slate-500 underline underline-offset-4">
                         Remove
                       </button>
                     </div>
@@ -190,13 +206,13 @@ function SavedItemsContent({ items, onClose }: { items: SavedResearchItem[]; onC
 }
 
 export function SavedResearchPanel() {
-  const items = useSavedItems()
+  const { items, authenticated } = useSavedItems()
   const [open, setOpen] = useState(false)
 
   return (
     <>
       <aside className="sticky top-28 hidden max-h-[calc(100vh-8rem)] overflow-y-auto rounded-[1.75rem] border border-bs-border bg-[color:var(--bs-panel)] p-5 shadow-[0_16px_40px_rgba(2,6,23,0.14)] xl:block">
-        <SavedItemsContent items={items} />
+        <SavedItemsContent items={items} authenticated={authenticated} />
       </aside>
       <button type="button" onClick={() => setOpen(true)} className="bs-button-primary fixed bottom-5 right-5 z-40 shadow-xl xl:hidden">
         Saved ({items.length})
@@ -204,7 +220,7 @@ export function SavedResearchPanel() {
       {open ? (
         <div className="fixed inset-0 z-50 bg-slate-950/70 p-4 backdrop-blur-sm xl:hidden" onClick={() => setOpen(false)}>
           <aside className="ml-auto h-full w-full max-w-sm overflow-y-auto rounded-[1.75rem] border border-bs-border bg-[color:var(--bs-panel)] p-5" onClick={(event) => event.stopPropagation()}>
-            <SavedItemsContent items={items} onClose={() => setOpen(false)} />
+            <SavedItemsContent items={items} authenticated={authenticated} onClose={() => setOpen(false)} />
           </aside>
         </div>
       ) : null}

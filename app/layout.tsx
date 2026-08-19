@@ -1,6 +1,8 @@
 import './globals.css'
 import { Fira_Code, Fira_Sans } from 'next/font/google'
 import AppNavbar from '@/components/app-navbar'
+import SiteFooter from '@/components/site-footer'
+import { getCurrentUser } from '@/lib/auth'
 
 export const metadata = {
   metadataBase: new URL('https://backer-sonar.local'),
@@ -23,11 +25,12 @@ const firaCode = Fira_Code({
   display: 'swap',
 })
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const user = await getCurrentUser()
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <body className={`${firaSans.variable} ${firaCode.variable} font-sans`}>
@@ -48,8 +51,9 @@ export default function RootLayout({
             `,
           }}
         />
-        <AppNavbar />
+        <AppNavbar user={user} />
         {children}
+        <SiteFooter />
       </body>
     </html>
   )
