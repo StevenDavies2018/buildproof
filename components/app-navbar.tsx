@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { AuthUser } from '@/lib/auth'
+import { ONBOARDING_OPEN_EVENT } from '@/lib/onboarding'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -39,6 +40,10 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
     setTheme(nextTheme)
     document.documentElement.dataset.theme = nextTheme
     window.localStorage.setItem('backer-sonar-theme', nextTheme)
+  }
+
+  function openHelpWalkthrough() {
+    window.dispatchEvent(new Event(ONBOARDING_OPEN_EVENT))
   }
 
   return (
@@ -87,6 +92,11 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
               >
                 Account
               </Link>
+              {user ? (
+                <button type="button" onClick={openHelpWalkthrough} className="bs-nav-link">
+                  Help
+                </button>
+              ) : null}
             </nav>
           </div>
 

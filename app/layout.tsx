@@ -1,6 +1,7 @@
 import './globals.css'
 import { Fira_Code, Fira_Sans } from 'next/font/google'
 import AppNavbar from '@/components/app-navbar'
+import OnboardingProvider from '@/components/onboarding-provider'
 import SiteFooter from '@/components/site-footer'
 import { getCurrentUser } from '@/lib/auth'
 
@@ -52,6 +53,7 @@ export default async function RootLayout({
           }}
         />
         <AppNavbar user={user} />
+        <OnboardingProvider user={user} />
         {children}
         <SiteFooter />
       </body>
