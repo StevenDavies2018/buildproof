@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PersistedViewLink } from '@/components/persisted-view-link'
 import { getAdminQualityOverview } from '@/lib/admin-quality'
 import { requireAdmin } from '@/lib/auth'
 
@@ -94,8 +95,8 @@ export default async function AdminQualityPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/admin" className="bs-button-secondary">Curation view</Link>
-              <Link href="/reports" className="bs-button-primary">Reporting view</Link>
+              <PersistedViewLink view="admin" fallbackHref="/admin" className="bs-button-secondary">Curation view</PersistedViewLink>
+              <PersistedViewLink view="reports" fallbackHref="/reports" className="bs-button-primary">Reporting view</PersistedViewLink>
             </div>
           </div>
 
@@ -204,7 +205,7 @@ export default async function AdminQualityPage() {
             {data.issueRows.map((campaign) => (
               <article key={campaign.campaignId} className="bs-panel-subtle flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
-                  <Link href={`/campaigns/${campaign.campaignId}`} className="font-semibold text-slate-900 hover:underline">
+                  <Link href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent('/admin/quality')}`} className="font-semibold text-slate-900 hover:underline">
                     {campaign.projectName}
                   </Link>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -214,7 +215,7 @@ export default async function AdminQualityPage() {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
-                  <Link href={`/campaigns/${campaign.campaignId}`} className="bs-button-secondary">Inspect record</Link>
+                  <Link href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent('/admin/quality')}`} className="bs-button-secondary">Inspect record</Link>
                   {campaign.projectUrl ? (
                     <a href={campaign.projectUrl} target="_blank" rel="noreferrer" className="bs-button-primary">Kickstarter</a>
                   ) : null}

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { PersistedViewLink } from '@/components/persisted-view-link'
 import { getCampaignDetail } from '@/lib/research'
 import { SaveCampaignButton } from '@/components/saved-research'
 
@@ -136,9 +137,15 @@ export default async function CampaignDetailPage({
                 categoryLabel={campaign.primaryClassificationLabel ?? campaign.categoryName}
                 projectUrl={campaign.projectUrl}
               />
-              <Link href={resolvedSearchParams.returnTo || '/'} className="bs-button-secondary">
-                Back to user view
-              </Link>
+              {resolvedSearchParams.returnTo ? (
+                <Link href={resolvedSearchParams.returnTo} className="bs-button-secondary">
+                  Back
+                </Link>
+              ) : (
+                <PersistedViewLink view="dashboard" fallbackHref="/dashboard" className="bs-button-secondary">
+                  Back to user view
+                </PersistedViewLink>
+              )}
               {campaign.projectUrl ? (
                 <a
                   href={campaign.projectUrl}

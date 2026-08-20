@@ -10,6 +10,26 @@ import {
 } from '@/lib/dashboard'
 import { SaveCampaignButton, SaveResearchViewButton } from '@/components/saved-research'
 
+const LAUNCH_WINDOW_OPTIONS = [
+  { value: '', label: 'All available years' },
+  { value: '1m', label: 'Last 1 month' },
+  { value: '3m', label: 'Last 3 months' },
+  { value: '6m', label: 'Last 6 months' },
+  { value: '12m', label: 'Last 12 months' },
+  { value: '24m', label: 'Last 24 months' },
+]
+
+const MINIMUM_BACKER_OPTIONS = [
+  { value: '', label: 'Any backer count' },
+  { value: '10', label: '10+ backers' },
+  { value: '25', label: '25+ backers' },
+  { value: '50', label: '50+ backers' },
+  { value: '100', label: '100+ backers' },
+  { value: '250', label: '250+ backers' },
+  { value: '500', label: '500+ backers' },
+  { value: '1000', label: '1,000+ backers' },
+]
+
 const MEMBERSHIP_OPTIONS = [
   { value: 'include_high', label: 'Included (high confidence)' },
   { value: 'include_medium', label: 'Included (medium confidence)' },
@@ -610,6 +630,7 @@ export default async function ResearchDashboard({
                       defaultParent={data.filters.categoryParent}
                       defaultSubcategory={data.filters.categorySlug}
                       defaultTaxonomy={data.filters.taxonomyLabel}
+                      submitOnCategoryChange
                       dark
                     />
 
@@ -649,6 +670,40 @@ export default async function ResearchDashboard({
 
                     <label className="grid gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
+                        Launch window
+                      </span>
+                      <select
+                        name="launchWindow"
+                        defaultValue={data.filters.launchWindow ?? ''}
+                        className="bs-field bs-field-dark"
+                      >
+                        {LAUNCH_WINDOW_OPTIONS.map((option) => (
+                          <option key={option.value || 'all'} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
+                        Minimum backers
+                      </span>
+                      <select
+                        name="minimumBackers"
+                        defaultValue={data.filters.minimumBackers ?? ''}
+                        className="bs-field bs-field-dark"
+                      >
+                        {MINIMUM_BACKER_OPTIONS.map((option) => (
+                          <option key={option.value || 'all'} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
                         Minimum goal range (USD)
                       </span>
                       <select name="minGoal" defaultValue={data.filters.minGoal ?? ''} className="bs-field bs-field-dark">
@@ -676,6 +731,38 @@ export default async function ResearchDashboard({
                         <option value="100000">$100,000 or more</option>
                       </select>
                     </label>
+
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
+                        Completed outcomes
+                      </span>
+                      <select
+                        name="includeFailures"
+                        defaultValue={data.filters.includeFailures ?? 'true'}
+                        className="bs-field bs-field-dark"
+                      >
+                        <option value="true">Include successes and failures</option>
+                        <option value="false">Successful campaigns only</option>
+                      </select>
+                    </label>
+
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
+                        Source completeness
+                      </span>
+                      <select
+                        name="fullyResearchableOnly"
+                        defaultValue={data.filters.fullyResearchableOnly ?? 'false'}
+                        className="bs-field bs-field-dark"
+                      >
+                        <option value="false">Include all source detail levels</option>
+                        <option value="true">Fully researchable only</option>
+                      </select>
+                    </label>
+
+                    <div className="rounded-[1rem] border border-white/12 bg-slate-950/20 px-4 py-3 text-xs leading-6 text-blue-100/70 md:col-span-2">
+                      Product taxonomy counts show how many campaigns in the current category slice carry each label before the taxonomy label itself is applied. Final comparable-campaign totals can be lower after all filters are combined.
+                    </div>
 
                   </div>
 

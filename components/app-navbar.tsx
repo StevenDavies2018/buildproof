@@ -1,9 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { AuthUser } from '@/lib/auth'
+import {
+  ADMIN_VIEW_STATE_KEY,
+  DASHBOARD_VIEW_STATE_KEY,
+  REPORTS_VIEW_STATE_KEY,
+} from '@/lib/view-state'
 import {
   getOnboardingStorageKey,
   ONBOARDING_OPEN_EVENT,
@@ -30,13 +35,32 @@ function getInitialTheme(): ThemeMode {
 
 export default function AppNavbar({ user }: { user: AuthUser | null }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [theme, setTheme] = useState<ThemeMode>('dark')
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>('not_started')
+  const [storedAdminHref, setStoredAdminHref] = useState('/admin')
+  const [storedDashboardHref, setStoredDashboardHref] = useState('/dashboard')
+  const [storedReportsHref, setStoredReportsHref] = useState('/reports')
 
   useEffect(() => {
     const nextTheme = getInitialTheme()
     setTheme(nextTheme)
     document.documentElement.dataset.theme = nextTheme
+  }, [])
+
+  useEffect(() => {
+    try {
+      const adminHref = window.localStorage.getItem(ADMIN_VIEW_STATE_KEY)
+      const dashboardHref = window.localStorage.getItem(DASHBOARD_VIEW_STATE_KEY)
+      const reportsHref = window.localStorage.getItem(REPORTS_VIEW_STATE_KEY)
+      if (adminHref) setStoredAdminHref(adminHref)
+      if (dashboardHref) setStoredDashboardHref(dashboardHref)
+      if (reportsHref) setStoredReportsHref(reportsHref)
+    } catch {
+      setStoredAdminHref('/admin')
+      setStoredDashboardHref('/dashboard')
+      setStoredReportsHref('/reports')
+    }
   }, [])
 
   useEffect(() => {
@@ -81,6 +105,17 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
     window.dispatchEvent(new Event(ONBOARDING_OPEN_EVENT))
   }
 
+  const currentQuery = searchParams?.toString() ?? ''
+  const isResearchSurface =
+    pathname?.startsWith('/dashboard') || pathname?.startsWith('/reports')
+  const dashboardHref =
+    isResearchSurface && currentQuery ? `/dashboard?${currentQuery}` : storedDashboardHref
+  const reportsHref =
+    isResearchSurface && currentQuery ? `/reports?${currentQuery}` : storedReportsHref
+  const adminHref = pathname?.startsWith('/admin') && currentQuery
+    ? `/admin?${currentQuery}`
+    : storedAdminHref
+
   return (
     <header className="bs-nav-shell">
       <div className="bs-container">
@@ -96,13 +131,13 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
 
             <nav className="bs-nav-links">
               <Link
-                href="/dashboard"
+                href={dashboardHref}
                 className={`bs-nav-link ${pathname?.startsWith('/dashboard') ? 'bs-nav-link-active' : ''}`}
               >
                 User View
               </Link>
               <Link
-                href="/reports"
+                href={reportsHref}
                 className={`bs-nav-link bs-nav-report-button ${pathname?.startsWith('/reports') ? 'bs-nav-report-button-active' : ''}`}
               >
                 Reporting View
@@ -115,7 +150,7 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
                   Research QA
                 </Link>
                 <Link
-                  href="/admin"
+                  href={adminHref}
                   className={`bs-nav-link ${pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/quality/research') ? 'bs-nav-link-active' : ''}`}
                 >
                   Admin View

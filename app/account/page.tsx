@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PersistedViewLink } from '@/components/persisted-view-link'
 import { getCurrentUser } from '@/lib/auth'
 import { loginAccount, logoutAccount, registerAccount } from './actions'
 
@@ -31,7 +32,12 @@ export default async function AccountPage({
               <h2 className="mt-3 break-words text-2xl font-semibold text-slate-900">{user.displayName}</h2>
               <p className="mt-2 break-all text-sm leading-6 text-slate-600">{user.email}</p>
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Link href="/dashboard" className="bs-button-primary">Open user view</Link>
+                <PersistedViewLink view="dashboard" fallbackHref="/dashboard" className="bs-button-secondary">
+                  Return to last view
+                </PersistedViewLink>
+                <PersistedViewLink view="dashboard" fallbackHref="/dashboard" className="bs-button-primary">
+                  Open user view
+                </PersistedViewLink>
                 <form action={logoutAccount}><button type="submit" className="bs-button-secondary">Sign out</button></form>
               </div>
             </div>
@@ -58,6 +64,17 @@ export default async function AccountPage({
               </form>
             </div>
           )}
+
+          {!user ? (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <PersistedViewLink view="dashboard" fallbackHref="/dashboard" className="bs-button-secondary">
+                Return to last view
+              </PersistedViewLink>
+              <p className="text-sm leading-6 text-slate-600">
+                Go back to the last dashboard slice you were reviewing without losing your research context.
+              </p>
+            </div>
+          ) : null}
         </section>
       </div>
     </main>

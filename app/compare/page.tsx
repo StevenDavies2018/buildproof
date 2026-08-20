@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PersistedViewLink } from '@/components/persisted-view-link'
 import { type CompareCampaign, getCompareCampaigns } from '@/lib/research'
 import { SaveComparisonButton } from '@/components/saved-research'
 
@@ -223,9 +224,9 @@ export default async function ComparePage({
                   categoryLabel={mixedCategories ? 'Mixed categories' : campaigns[0]?.primaryClassificationLabel ?? campaigns[0]?.categoryName ?? null}
                 />
               ) : null}
-              <Link href="/" className="bs-button-secondary">
+              <PersistedViewLink view="dashboard" fallbackHref="/dashboard" className="bs-button-secondary">
                 Back to user view
-              </Link>
+              </PersistedViewLink>
             </div>
           </div>
 

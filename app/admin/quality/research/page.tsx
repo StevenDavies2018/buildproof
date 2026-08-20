@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PersistedViewLink } from '@/components/persisted-view-link'
 import {
   getResearchBenchmarkReport,
   type ResearchBenchmarkResult,
@@ -72,7 +73,7 @@ function BenchmarkCard({ benchmark }: { benchmark: ResearchBenchmarkResult }) {
             <div key={campaign.campaignId} className="grid gap-4 px-5 py-4 lg:grid-cols-[auto,1fr,auto] lg:items-start">
               <span className="font-mono text-sm font-semibold text-slate-500">#{index + 1}</span>
               <div className="min-w-0">
-                <Link href={`/campaigns/${campaign.campaignId}`} className="font-semibold text-slate-900 hover:underline">
+                <Link href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent('/admin/quality/research')}`} className="font-semibold text-slate-900 hover:underline">
                   {campaign.projectName}
                 </Link>
                 <p className="mt-1 text-xs text-slate-500">
@@ -92,7 +93,7 @@ function BenchmarkCard({ benchmark }: { benchmark: ResearchBenchmarkResult }) {
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Link href={userViewHref} className="bs-button-primary">Run in User View</Link>
-        <Link href={`/campaigns/${benchmark.topResults[0]?.campaignId ?? ''}`} className="bs-button-secondary">Inspect top result</Link>
+        <Link href={`/campaigns/${benchmark.topResults[0]?.campaignId ?? ''}?returnTo=${encodeURIComponent('/admin/quality/research')}`} className="bs-button-secondary">Inspect top result</Link>
       </div>
     </article>
   )
@@ -130,7 +131,7 @@ export default async function ResearchBenchmarkPage() {
                 These fixed research ideas rerun the deterministic lexical ranker against the current POC snapshot. Automatic checks measure taxonomy precision, trusted examples, and source completeness; human notes record whether the result set answers the intended research question.
               </p>
             </div>
-            <Link href="/admin/quality" className="bs-button-secondary">Back to data quality</Link>
+            <PersistedViewLink view="admin" fallbackHref="/admin/quality" className="bs-button-secondary">Back to data quality</PersistedViewLink>
           </div>
 
           <nav className="mt-7 flex flex-wrap gap-2" aria-label="Admin sections">

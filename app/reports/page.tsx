@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import ViewStatePersistence from '@/components/view-state-persistence'
 import { formatNormalizedStatusLabel, RAW_STATE_OPTIONS } from '@/lib/state-labels'
 import {
   type CategoryAnalysisMetric,
@@ -40,6 +41,36 @@ const DURATION_OPTIONS = [
   { value: 'unknown', label: 'Unknown' },
 ]
 
+const LAUNCH_WINDOW_OPTIONS = [
+  { value: '', label: 'All available years' },
+  { value: '1m', label: 'Last 1 month' },
+  { value: '3m', label: 'Last 3 months' },
+  { value: '6m', label: 'Last 6 months' },
+  { value: '12m', label: 'Last 12 months' },
+  { value: '24m', label: 'Last 24 months' },
+]
+
+const MINIMUM_BACKER_OPTIONS = [
+  { value: '', label: 'Any backer count' },
+  { value: '10', label: '10+ backers' },
+  { value: '25', label: '25+ backers' },
+  { value: '50', label: '50+ backers' },
+  { value: '100', label: '100+ backers' },
+  { value: '250', label: '250+ backers' },
+  { value: '500', label: '500+ backers' },
+  { value: '1000', label: '1,000+ backers' },
+]
+
+const MONEY_RANGE_OPTIONS = [
+  { value: '', label: 'Any amount' },
+  { value: '1000', label: '$1,000 or more' },
+  { value: '5000', label: '$5,000 or more' },
+  { value: '10000', label: '$10,000 or more' },
+  { value: '25000', label: '$25,000 or more' },
+  { value: '50000', label: '$50,000 or more' },
+  { value: '100000', label: '$100,000 or more' },
+]
+
 type CategoryDisplayMetric = Pick<
   CategoryAnalysisMetric,
   'campaignCount' | 'successRate' | 'medianGoalUsd' | 'moneyComparableCount'
@@ -67,6 +98,8 @@ type ReportsSearchParams = ResearchFilterSearchParams & {
   sort?: string
   order?: string
   year?: string
+  reportCardLimit?: string
+  reportCardOffset?: string
 }
 
 function createEmptyMetric(
@@ -299,6 +332,14 @@ export default async function ReportsPage({
     ? (resolvedSearchParams.sort as CategorySort)
     : 'campaigns'
   const sortOrder: SortOrder = resolvedSearchParams.order === 'asc' ? 'asc' : 'desc'
+  const reportCardLimit = ['12', '24', '48', '100'].includes(resolvedSearchParams.reportCardLimit ?? '')
+    ? resolvedSearchParams.reportCardLimit!
+    : '12'
+  const reportCardOffset =
+    Number.isInteger(Number(resolvedSearchParams.reportCardOffset)) &&
+    Number(resolvedSearchParams.reportCardOffset) >= 0
+      ? String(Math.floor(Number(resolvedSearchParams.reportCardOffset)))
+      : '0'
 
   const baseFilters = {
     ...dashboardFilters,
@@ -317,6 +358,7 @@ export default async function ReportsPage({
   if (!metrics.length) {
     return (
       <main className="bs-shell">
+        <ViewStatePersistence />
         <div className="bs-container">
           <section className="bs-panel">
             <p className="bs-kicker">Reporting View</p>
@@ -385,10 +427,16 @@ export default async function ReportsPage({
     if (dashboardFilters.search) params.set('search', dashboardFilters.search)
     if (dashboardFilters.categoryParent) params.set('categoryParent', dashboardFilters.categoryParent)
     if (dashboardFilters.categorySlug) params.set('categorySlug', dashboardFilters.categorySlug)
+    if (dashboardFilters.launchWindow) params.set('launchWindow', dashboardFilters.launchWindow)
+    if (dashboardFilters.minimumBackers) params.set('minimumBackers', dashboardFilters.minimumBackers)
+    if (dashboardFilters.includeFailures) params.set('includeFailures', dashboardFilters.includeFailures)
+    if (dashboardFilters.fullyResearchableOnly) params.set('fullyResearchableOnly', dashboardFilters.fullyResearchableOnly)
     if (dashboardFilters.rawState) params.set('rawState', dashboardFilters.rawState)
     if (dashboardFilters.durationBucket) params.set('durationBucket', dashboardFilters.durationBucket)
     if (dashboardFilters.minGoal) params.set('minGoal', dashboardFilters.minGoal)
     if (dashboardFilters.minPledged) params.set('minPledged', dashboardFilters.minPledged)
+    if (reportCardLimit) params.set('reportCardLimit', reportCardLimit)
+    if (reportCardOffset !== '0') params.set('reportCardOffset', reportCardOffset)
 
     for (const [key, value] of Object.entries(extra)) {
       if (!value) {
@@ -406,12 +454,14 @@ export default async function ReportsPage({
         ...baseFilters,
         taxonomyLabel: selectedMetric.taxonomyLabel,
         years: selectedYear === null ? dashboardFilters.years : String(selectedYear),
-        cardLimit: '100',
+        cardLimit: reportCardLimit,
+        cardOffset: reportCardOffset,
       })
     : null
 
   return (
     <main className="bs-shell">
+      <ViewStatePersistence />
       <div className="bs-container grid gap-8">
         <section className="bs-panel">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -481,19 +531,85 @@ export default async function ReportsPage({
               </label>
 
               <label className="grid gap-2">
-                <span className="bs-kicker">Minimum goal (USD)</span>
-                <input type="text" name="minGoal" defaultValue={dashboardFilters.minGoal} className="bs-field" />
+                <span className="bs-kicker">Launch window</span>
+                <select name="launchWindow" defaultValue={dashboardFilters.launchWindow} className="bs-field">
+                  {LAUNCH_WINDOW_OPTIONS.map((option) => (
+                    <option key={option.value || 'all'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="grid gap-2">
-                <span className="bs-kicker">Minimum pledged (USD)</span>
-                <input type="text" name="minPledged" defaultValue={dashboardFilters.minPledged} className="bs-field" />
+                <span className="bs-kicker">Minimum backers</span>
+                <select name="minimumBackers" defaultValue={dashboardFilters.minimumBackers} className="bs-field">
+                  {MINIMUM_BACKER_OPTIONS.map((option) => (
+                    <option key={option.value || 'all'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="bs-kicker">Minimum goal range (USD)</span>
+                <select name="minGoal" defaultValue={dashboardFilters.minGoal} className="bs-field">
+                  {MONEY_RANGE_OPTIONS.map((option) => (
+                    <option key={option.value || 'all'} value={option.value}>
+                      {option.value ? option.label : 'Any goal'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="bs-kicker">Minimum pledged range (USD)</span>
+                <select name="minPledged" defaultValue={dashboardFilters.minPledged} className="bs-field">
+                  {MONEY_RANGE_OPTIONS.map((option) => (
+                    <option key={option.value || 'all'} value={option.value}>
+                      {option.value ? option.label : 'Any pledged amount'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="bs-kicker">Completed outcomes</span>
+                <select name="includeFailures" defaultValue={dashboardFilters.includeFailures} className="bs-field">
+                  <option value="true">Include successes and failures</option>
+                  <option value="false">Successful campaigns only</option>
+                </select>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="bs-kicker">Source completeness</span>
+                <select name="fullyResearchableOnly" defaultValue={dashboardFilters.fullyResearchableOnly} className="bs-field">
+                  <option value="false">Include all source detail levels</option>
+                  <option value="true">Fully researchable only</option>
+                </select>
               </label>
             </div>
 
-            <button type="submit" className="bs-button-primary">Load report</button>
+            <div className="flex flex-wrap gap-3">
+              <button type="submit" className="bs-button-primary">Load report</button>
+              <Link href="/reports" className="bs-button-secondary">Reset filters</Link>
+            </div>
           </form>
         </section>
+
+        {!selectedMetric ? (
+          <section className="bs-panel-subtle order-2">
+            <p className="bs-kicker">Nothing loaded yet</p>
+            <h2 className="bs-title mt-2 text-2xl font-semibold">Pick a taxonomy label, then load the report</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+              Reporting stays empty until you choose the product taxonomy you want to inspect.
+              Start with a main category and subcategory, narrow further with taxonomy when needed,
+              then select <span className="font-semibold text-slate-900">Load report</span> to open the category metrics,
+              yearly activity, and supporting campaign links for that exact slice.
+            </p>
+          </section>
+        ) : null}
 
         {selectedMetric && displayedMetric ? (
           <>
@@ -648,6 +764,10 @@ export default async function ReportsPage({
             <input type="hidden" name="search" value={dashboardFilters.search ?? ''} />
             <input type="hidden" name="categoryParent" value={dashboardFilters.categoryParent ?? ''} />
             <input type="hidden" name="categorySlug" value={dashboardFilters.categorySlug ?? ''} />
+            <input type="hidden" name="launchWindow" value={dashboardFilters.launchWindow ?? ''} />
+            <input type="hidden" name="minimumBackers" value={dashboardFilters.minimumBackers ?? ''} />
+            <input type="hidden" name="includeFailures" value={dashboardFilters.includeFailures ?? 'true'} />
+            <input type="hidden" name="fullyResearchableOnly" value={dashboardFilters.fullyResearchableOnly ?? 'false'} />
             <input type="hidden" name="rawState" value={dashboardFilters.rawState ?? ''} />
             <input type="hidden" name="durationBucket" value={dashboardFilters.durationBucket ?? ''} />
             <input type="hidden" name="minGoal" value={dashboardFilters.minGoal ?? ''} />
@@ -735,6 +855,45 @@ export default async function ReportsPage({
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {supportingCampaigns.campaigns.length ? (
+                <div className="md:col-span-2 xl:col-span-3 flex flex-col gap-3 rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-4 md:flex-row md:items-end md:justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="bs-data-chip bg-sky-100 text-sky-800">
+                      Showing {formatInteger(Number(reportCardOffset) + 1)}-{formatInteger(Number(reportCardOffset) + supportingCampaigns.campaigns.length)} of {formatInteger(supportingCampaigns.summary.comparableCampaigns)}
+                    </span>
+                  </div>
+                  <form method="get" action="/reports#selected-report" className="grid gap-3 md:grid-cols-[auto,auto] md:items-end">
+                    <input type="hidden" name="window" value={metricWindow} />
+                    <input type="hidden" name="search" value={dashboardFilters.search ?? ''} />
+                    <input type="hidden" name="categoryParent" value={dashboardFilters.categoryParent ?? ''} />
+                    <input type="hidden" name="categorySlug" value={dashboardFilters.categorySlug ?? ''} />
+                    <input type="hidden" name="taxonomyLabel" value={selectedCategory ?? ''} />
+                    <input type="hidden" name="launchWindow" value={dashboardFilters.launchWindow ?? ''} />
+                    <input type="hidden" name="minimumBackers" value={dashboardFilters.minimumBackers ?? ''} />
+                    <input type="hidden" name="includeFailures" value={dashboardFilters.includeFailures ?? 'true'} />
+                    <input type="hidden" name="fullyResearchableOnly" value={dashboardFilters.fullyResearchableOnly ?? 'false'} />
+                    <input type="hidden" name="rawState" value={dashboardFilters.rawState ?? ''} />
+                    <input type="hidden" name="durationBucket" value={dashboardFilters.durationBucket ?? ''} />
+                    <input type="hidden" name="minGoal" value={dashboardFilters.minGoal ?? ''} />
+                    <input type="hidden" name="minPledged" value={dashboardFilters.minPledged ?? ''} />
+                    <input type="hidden" name="trend" value={trendFilter} />
+                    <input type="hidden" name="sort" value={categorySort} />
+                    <input type="hidden" name="order" value={sortOrder} />
+                    {selectedYear !== null ? <input type="hidden" name="year" value={selectedYear} /> : null}
+                    <input type="hidden" name="reportCardOffset" value="0" />
+                    <label className="grid gap-2">
+                      <span className="bs-kicker">Cards shown</span>
+                      <select name="reportCardLimit" defaultValue={reportCardLimit} className="bs-field">
+                        <option value="12">12 cards</option>
+                        <option value="24">24 cards</option>
+                        <option value="48">48 cards</option>
+                        <option value="100">100 cards</option>
+                      </select>
+                    </label>
+                    <button type="submit" className="bs-button-primary">Update cards</button>
+                  </form>
+                </div>
+              ) : null}
+              {supportingCampaigns.campaigns.length ? (
                 supportingCampaigns.campaigns.map((campaign) => (
                   <article key={campaign.campaignId} className="bs-panel-subtle min-w-0">
                     <p className="bs-kicker">{formatNormalizedStatusLabel(campaign.normalizedStatus)}</p>
@@ -777,7 +936,13 @@ export default async function ReportsPage({
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <a
-                        href={`/campaigns/${campaign.campaignId}`}
+                        href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(buildHref({
+                          taxonomyLabel: selectedMetric.dimensionKey,
+                          trend: trendFilter,
+                          sort: categorySort,
+                          order: sortOrder,
+                          year: selectedYear === null ? undefined : String(selectedYear),
+                        }))}`}
                         target="_blank"
                         rel="noreferrer"
                         className="bs-button-secondary"
@@ -798,6 +963,37 @@ export default async function ReportsPage({
                 </div>
               )}
             </div>
+
+            {supportingCampaigns.campaigns.length &&
+            Number(reportCardOffset) + supportingCampaigns.campaigns.length < supportingCampaigns.summary.comparableCampaigns ? (
+              <form method="get" action="/reports#selected-report" className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-4">
+                <input type="hidden" name="window" value={metricWindow} />
+                <input type="hidden" name="search" value={dashboardFilters.search ?? ''} />
+                <input type="hidden" name="categoryParent" value={dashboardFilters.categoryParent ?? ''} />
+                <input type="hidden" name="categorySlug" value={dashboardFilters.categorySlug ?? ''} />
+                <input type="hidden" name="taxonomyLabel" value={selectedCategory ?? ''} />
+                <input type="hidden" name="launchWindow" value={dashboardFilters.launchWindow ?? ''} />
+                <input type="hidden" name="minimumBackers" value={dashboardFilters.minimumBackers ?? ''} />
+                <input type="hidden" name="includeFailures" value={dashboardFilters.includeFailures ?? 'true'} />
+                <input type="hidden" name="fullyResearchableOnly" value={dashboardFilters.fullyResearchableOnly ?? 'false'} />
+                <input type="hidden" name="rawState" value={dashboardFilters.rawState ?? ''} />
+                <input type="hidden" name="durationBucket" value={dashboardFilters.durationBucket ?? ''} />
+                <input type="hidden" name="minGoal" value={dashboardFilters.minGoal ?? ''} />
+                <input type="hidden" name="minPledged" value={dashboardFilters.minPledged ?? ''} />
+                <input type="hidden" name="trend" value={trendFilter} />
+                <input type="hidden" name="sort" value={categorySort} />
+                <input type="hidden" name="order" value={sortOrder} />
+                <input type="hidden" name="reportCardLimit" value={reportCardLimit} />
+                <input type="hidden" name="reportCardOffset" value={String(Number(reportCardOffset) + supportingCampaigns.campaigns.length)} />
+                {selectedYear !== null ? <input type="hidden" name="year" value={selectedYear} /> : null}
+                <p className="text-sm text-slate-600">
+                  More supporting campaigns are available in this report slice.
+                </p>
+                <button type="submit" className="bs-button-primary">
+                  Load next {reportCardLimit}
+                </button>
+              </form>
+            ) : null}
           </section>
         ) : null}
       </div>

@@ -1,4 +1,5 @@
 import AdminSubsetOverview from '@/components/admin-subset-overview'
+import ViewStatePersistence from '@/components/view-state-persistence'
 import { type AdminSubsetFilters } from '@/lib/admin'
 import { requireAdmin } from '@/lib/auth'
 
@@ -38,6 +39,7 @@ export default async function AdminPage({
 
   return (
     <main className="bs-shell overflow-x-hidden">
+      <ViewStatePersistence />
       <div className="bs-container">
         <AdminSubsetOverview filters={filters} />
       </div>
