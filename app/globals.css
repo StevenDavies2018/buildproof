@@ -12,7 +12,7 @@
   --bs-background: #f8fafc;
   --bs-foreground: #1e3a8a;
   --bs-muted: #e9eef6;
-  --bs-border: #dbeafe;
+  --bs-border: rgba(15, 23, 42, 0.18);
   --bs-panel: rgba(255, 255, 255, 0.92);
   --bs-panel-alt: #f6f9ff;
   --bs-nav-panel: rgba(255, 255, 255, 0.82);
@@ -161,9 +161,9 @@ body {
   }
 
   .bs-category-card-selected {
-    border-color: #38bdf8;
-    background: #f0f9ff;
-    box-shadow: 0 14px 35px rgba(14, 165, 233, 0.14);
+    border-color: rgba(15, 23, 42, 0.32);
+    background: #f8fbff;
+    box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
   }
 
   .bs-trend-rising {
@@ -249,20 +249,27 @@ body {
 
   .bs-onboarding-backdrop {
     @apply absolute inset-0;
-    background: rgba(2, 6, 23, 0.74);
-    backdrop-filter: blur(6px);
+    background: rgba(2, 6, 23, 0.36);
   }
 
   .bs-onboarding-panel {
-    @apply relative z-[101] w-full max-w-2xl rounded-[2rem] border p-8 shadow-[0_28px_80px_rgba(2,6,23,0.45)] md:p-10;
+    @apply fixed z-[101] w-full overflow-y-auto overscroll-contain rounded-[2rem] border p-6 shadow-[0_28px_80px_rgba(2,6,23,0.45)] md:p-8;
     border-color: rgba(148, 163, 184, 0.28);
     background:
       linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(17, 28, 52, 0.96)),
       radial-gradient(circle at top right, rgba(56, 189, 248, 0.16), transparent 30%);
   }
 
+  .bs-onboarding-spotlight {
+    @apply pointer-events-none fixed z-[100] rounded-[2rem];
+    box-shadow:
+      0 0 0 1px rgba(125, 211, 252, 0.95),
+      0 0 0 9999px rgba(2, 6, 23, 0.2),
+      0 24px 60px rgba(2, 132, 199, 0.22);
+  }
+
   .bs-onboarding-bullet {
-    @apply flex items-start gap-3 rounded-[1rem] border px-4 py-3 text-sm leading-6 text-slate-200;
+    @apply flex items-start gap-3 rounded-[1rem] border px-4 py-2.5 text-sm leading-6 text-slate-200;
     border-color: rgba(96, 165, 250, 0.16);
     background: rgba(30, 41, 59, 0.6);
   }
@@ -273,7 +280,7 @@ body {
   }
 
   .bs-onboarding-note {
-    @apply rounded-[1.25rem] border px-4 py-4 text-sm leading-6 text-slate-200;
+    @apply rounded-[1.25rem] border px-4 py-3 text-sm leading-6 text-slate-200;
     border-color: rgba(245, 158, 11, 0.24);
     background: rgba(120, 53, 15, 0.18);
   }

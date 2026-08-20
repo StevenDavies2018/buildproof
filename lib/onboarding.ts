@@ -1,5 +1,6 @@
 export type OnboardingStatus = 'not_started' | 'skipped' | 'completed'
 export const ONBOARDING_WALKTHROUGH_KEY = 'user-view-v1'
+export type OnboardingVariant = 'dashboard' | 'reports'
 
 export type OnboardingStep = {
   id: string
@@ -11,8 +12,27 @@ export type OnboardingStep = {
   targetId?: string
 }
 
+export const ONBOARDING_VARIANT_LABELS: Record<OnboardingVariant, string> = {
+  dashboard: 'User View walkthrough',
+  reports: 'Reporting walkthrough',
+}
+
 export const ONBOARDING_STATUS_CHANGED_EVENT = 'backer-sonar:onboarding-status-changed'
 export const ONBOARDING_OPEN_EVENT = 'backer-sonar:open-onboarding'
+export const ONBOARDING_SAMPLE_QUERY: Record<string, string> = {
+  view: 'campaigns',
+  search: '5e monster bestiary book',
+  categoryParent: 'Games',
+  categorySlug: 'games/tabletop games',
+  rawState: 'successful',
+  durationBucket: 'medium',
+  minGoal: '10000',
+  sortBy: 'recommended',
+  sortDir: 'desc',
+  cardLimit: '12',
+  cardOffset: '0',
+  onboardingSample: '1',
+}
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
@@ -26,6 +46,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       'Inspect comparable campaigns and supporting evidence',
     ],
     primaryLabel: 'Start walkthrough',
+    targetId: 'onboarding-target-saved-research',
   },
   {
     id: 'shape-slice',
@@ -70,7 +91,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     ],
     note: 'Match strength explains relevance to your idea. It is not a quality score and it is not a prediction of success.',
     primaryLabel: 'Next: what to do after this',
-    targetId: 'onboarding-target-campaigns',
+    targetId: 'onboarding-target-campaign-card',
   },
   {
     id: 'next-actions',
@@ -85,7 +106,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     ],
     note: 'You can save and reopen three kinds of work: research views, individual campaigns, and saved comparison sets.',
     primaryLabel: 'Finish walkthrough',
-    targetId: 'onboarding-target-next-actions',
+    targetId: 'onboarding-target-campaigns',
   },
 ]
 

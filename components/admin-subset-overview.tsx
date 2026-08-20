@@ -393,9 +393,9 @@ export default async function AdminSubsetOverview({
               className="bs-field"
             >
               <option value="">All</option>
-              <option value="short">Short (0-21d)</option>
-              <option value="medium">Medium (22-35d)</option>
-              <option value="long">Long (36d+)</option>
+              <option value="short">Short (1-15d)</option>
+              <option value="medium">Medium (16-30d)</option>
+              <option value="long">Long (31d+)</option>
               <option value="unknown">Unknown</option>
             </select>
           </FilterField>

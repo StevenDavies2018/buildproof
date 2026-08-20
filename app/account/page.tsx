@@ -40,8 +40,8 @@ export default async function AccountPage({
               <form action={loginAccount} className="rounded-2xl border border-bs-border bg-[color:var(--bs-field-bg)] p-5">
                 <p className="bs-kicker">Existing account</p>
                 <h2 className="mt-2 text-2xl font-semibold text-slate-900">Sign in</h2>
-                <label className="mt-5 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-input mt-2 w-full" /></label>
-                <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required className="bs-input mt-2 w-full" /></label>
+                <label className="mt-5 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-field mt-2 w-full" /></label>
+                <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required className="bs-field mt-2 w-full" /></label>
                 <button type="submit" className="bs-button-primary mt-5">Sign in</button>
                 <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
                 <a href="/api/auth/google" className="bs-button-secondary inline-flex">Continue with Google</a>
@@ -49,9 +49,9 @@ export default async function AccountPage({
               <form action={registerAccount} className="rounded-2xl border border-bs-border bg-[color:var(--bs-field-bg)] p-5">
                 <p className="bs-kicker">New workspace</p>
                 <h2 className="mt-2 text-2xl font-semibold text-slate-900">Create account</h2>
-                <label className="mt-5 block text-sm font-medium text-slate-700">Display name<input name="displayName" required minLength={2} className="bs-input mt-2 w-full" /></label>
-                <label className="mt-4 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-input mt-2 w-full" /></label>
-                <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required minLength={8} className="bs-input mt-2 w-full" /></label>
+                <label className="mt-5 block text-sm font-medium text-slate-700">Display name<input name="displayName" required minLength={2} className="bs-field mt-2 w-full" /></label>
+                <label className="mt-4 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-field mt-2 w-full" /></label>
+                <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required minLength={8} className="bs-field mt-2 w-full" /></label>
                 <button type="submit" className="bs-button-primary mt-5">Create account</button>
                 <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
                 <a href="/api/auth/google" className="bs-button-secondary inline-flex">Register with Google</a>

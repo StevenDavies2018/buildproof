@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { HierarchicalCategoryFilters } from '@/components/hierarchical-category-filters'
+import { formatNormalizedStatusLabel, RAW_STATE_OPTIONS } from '@/lib/state-labels'
 import {
   type DashboardFilters,
   type DashboardOutcomeRow,
@@ -19,16 +21,6 @@ const CONFIDENCE_OPTIONS = [
   { value: 'include_high', label: 'High confidence' },
   { value: 'include_medium', label: 'Medium confidence' },
   { value: 'review', label: 'Low confidence / unclear' },
-]
-
-const STATE_OPTIONS = [
-  'successful',
-  'failed',
-  'canceled',
-  'submitted',
-  'live',
-  'started',
-  'suspended',
 ]
 
 function toNumericValue(value: number | string | null | undefined) {
@@ -228,10 +220,10 @@ function ProgressBar({
         ? 'from-amber-500 to-amber-300'
         : tone === 'slate'
           ? 'from-slate-800 to-slate-500'
-          : 'from-blue-600 to-sky-400'
+          : 'from-blue-800 to-sky-600'
 
   return (
-    <div className="h-2.5 rounded-full bg-slate-200/80">
+    <div className="h-2.5 rounded-full bg-[#7489a1e6]">
       <div
         className={`h-2.5 rounded-full bg-gradient-to-r ${toneClass}`}
         style={{ width }}
@@ -519,7 +511,7 @@ export default async function ResearchDashboard({
   const activeView = data.filters.view === 'analysis' ? 'analysis' : 'campaigns'
   const compareQueryValue = compareIds.length ? compareIds.join(',') : undefined
   const hasUserSelection = Boolean(
-    filters.search || filters.categorySlug || filters.taxonomyLabel || filters.durationBucket ||
+    filters.search || filters.categoryParent || filters.categorySlug || filters.taxonomyLabel || filters.durationBucket ||
     filters.rawState || filters.minGoal || filters.minPledged || filters.years || filters.launchWindow ||
     filters.minimumBackers || filters.includeFailures === 'false' || filters.fullyResearchableOnly === 'true' ||
     filters.view === 'analysis' || compareIds.length,
@@ -562,7 +554,7 @@ export default async function ResearchDashboard({
           </div>
 
           <div>
-            <section className="rounded-[1.75rem] border border-white/12 bg-white/10 p-6 backdrop-blur">
+            <section id="onboarding-target-filters" className="rounded-[1.75rem] border border-white/12 bg-white/10 p-6 backdrop-blur">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
                   <div>
@@ -576,7 +568,7 @@ export default async function ResearchDashboard({
                       Current dataset
                     </p>
                     <p className="mt-2">August 12, 2026 snapshot</p>
-                    <p>TTRPG proof-of-concept subset</p>
+                    <p>Full Kickstarter dataset</p>
                   </div>
                 </div>
 
@@ -588,47 +580,38 @@ export default async function ResearchDashboard({
                   {data.filters.years ? (
                     <input type="hidden" name="years" value={data.filters.years} />
                   ) : null}
-                  {data.filters.taxonomyLabel ? (
-                    <input type="hidden" name="taxonomyLabel" value={data.filters.taxonomyLabel} />
-                  ) : null}
                   {compareIds.length ? (
                     <input type="hidden" name="compare" value={compareIds.join(',')} />
                   ) : null}
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-2 md:col-span-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
-                        Research idea
+                        Research idea (optional)
                       </span>
                       <input
                         type="text"
                         name="search"
                         defaultValue={data.filters.search}
-                        placeholder="Solo journaling RPG, 5e monster book, dungeon crawler"
+                        placeholder="Enter a research idea"
                         className="bs-field bs-field-dark"
                       />
                       <span className="text-xs leading-5 text-blue-100/65">
-                        Matches any entered term across project text, categories,
-                        and taxonomy; results with more matching terms rank higher.
+                        Leave this blank to browse the selected filters. If you enter an idea,
+                        matching terms across project text, categories, and taxonomy rank higher.
+                      </span>
+                      <span className="text-xs italic leading-5 text-blue-100/50">
+                        Example: Solo journaling RPG, 5e monster book, dungeon crawler
                       </span>
                     </label>
 
-                    <label className="grid gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
-                        Category
-                      </span>
-                      <select
-                        name="categorySlug"
-                        defaultValue={data.filters.categorySlug}
-                        className="bs-field bs-field-dark"
-                      >
-                        <option value="">None</option>
-                        {data.categories.map((category) => (
-                          <option key={category.categorySlug} value={category.categorySlug}>
-                            {category.categorySlug}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <HierarchicalCategoryFilters
+                      categories={data.categories}
+                      taxonomy={data.taxonomy}
+                      defaultParent={data.filters.categoryParent}
+                      defaultSubcategory={data.filters.categorySlug}
+                      defaultTaxonomy={data.filters.taxonomyLabel}
+                      dark
+                    />
 
                     <label className="grid gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/70">
@@ -639,10 +622,9 @@ export default async function ResearchDashboard({
                         defaultValue={data.filters.rawState}
                         className="bs-field bs-field-dark"
                       >
-                        <option value="">All</option>
-                        {STATE_OPTIONS.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
+                        {RAW_STATE_OPTIONS.map((option) => (
+                          <option key={option.value || 'all'} value={option.value}>
+                            {option.label}
                           </option>
                         ))}
                       </select>
@@ -658,9 +640,9 @@ export default async function ResearchDashboard({
                         className="bs-field bs-field-dark"
                       >
                         <option value="">All</option>
-                        <option value="short">Short (0-21d)</option>
-                        <option value="medium">Medium (22-35d)</option>
-                        <option value="long">Long (36d+)</option>
+                        <option value="short">Short (1-15d)</option>
+                        <option value="medium">Medium (16-30d)</option>
+                        <option value="long">Long (31d+)</option>
                         <option value="unknown">Unknown</option>
                       </select>
                     </label>
@@ -721,7 +703,7 @@ export default async function ResearchDashboard({
       </section>
 
       {showResults ? <>
-      <section className="rounded-[1.75rem] border border-white/12 bg-white/10 p-5 backdrop-blur">
+      <section id="onboarding-target-signal" className="rounded-[1.75rem] border border-white/12 bg-white/10 p-5 backdrop-blur">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-100/70">
           Read this slice
         </p>
@@ -811,7 +793,8 @@ export default async function ResearchDashboard({
       </nav>
 
       <section className="grid items-start gap-6 xl:grid-cols-[1.1fr,0.9fr]">
-        <div className={`bs-panel xl:col-span-2 ${activeView === 'analysis' ? '' : 'hidden'}`}>
+        {activeView === 'analysis' ? (
+        <div className="bs-panel xl:col-span-2">
           <p className="bs-kicker">Fast read</p>
           <h2 className="bs-title mt-2 text-2xl font-semibold">Answer first, evidence second</h2>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -849,14 +832,16 @@ export default async function ResearchDashboard({
               <div>
                 <p className="bs-kicker">What needs caution</p>
                 <p className="mt-2 text-sm leading-7 text-slate-600">
-                  USD values use Kickstarter's source exchange metadata and retain the original native amounts. Lower-confidence fallback conversions are identified on campaign details rather than presented as exact historical market rates.
+                  USD values use Kickstarter&apos;s source exchange metadata and retain the original native amounts. Lower-confidence fallback conversions are identified on campaign details rather than presented as exact historical market rates.
                 </p>
               </div>
             </div>
           </details>
         </div>
+        ) : null}
 
-        <div className={`bs-panel xl:col-span-2 ${activeView === 'campaigns' ? '' : 'hidden'}`}>
+        {activeView === 'campaigns' ? (
+        <div className="bs-panel xl:col-span-2">
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="bs-kicker">Taxonomy fit</p>
@@ -906,54 +891,56 @@ export default async function ResearchDashboard({
             )}
           </div>
         </div>
+        ) : null}
       </section>
 
-      <section className={`grid items-start gap-6 xl:grid-cols-[1.05fr,0.95fr] ${activeView === 'analysis' ? '' : 'hidden'}`}>
+      {activeView === 'analysis' ? (
+      <section className="grid items-start gap-6 xl:grid-cols-[1.05fr,0.95fr]">
         <div className="bs-panel">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="bs-kicker">Trend and activity</p>
-            <h2 className="bs-title mt-2 text-2xl font-semibold">Year-by-year activity view</h2>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="bs-kicker">Trend and activity</p>
+              <h2 className="bs-title mt-2 text-2xl font-semibold">Year-by-year activity view</h2>
+            </div>
+            <span className={`bs-data-chip ${signalChipClass(trend)}`}>{trend}</span>
           </div>
-          <span className={`bs-data-chip ${signalChipClass(trend)}`}>{trend}</span>
-        </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link
-            href={`/dashboard${buildDashboardQueryString({
-              ...data.filters,
-              years: '',
-            })}`}
-            className={`bs-button-secondary px-3 py-1.5 ${
-              selectedYears.size === 0 ? 'bg-slate-900 text-white' : ''
-            }`}
-          >
-            All years
-          </Link>
-          {data.availableYears.map((year) => {
-            const isSelected = selectedYears.has(year)
-            const nextYears = isSelected
-              ? Array.from(selectedYears).filter((value) => value !== year)
-              : [...Array.from(selectedYears), year].sort((a, b) => a - b)
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Link
+              href={`/dashboard${buildDashboardQueryString({
+                ...data.filters,
+                years: '',
+              })}`}
+              className={`bs-button-secondary px-3 py-1.5 ${
+                selectedYears.size === 0 ? 'bg-slate-900 text-white' : ''
+              }`}
+            >
+              All years
+            </Link>
+            {data.availableYears.map((year) => {
+              const isSelected = selectedYears.has(year)
+              const nextYears = isSelected
+                ? Array.from(selectedYears).filter((value) => value !== year)
+                : [...Array.from(selectedYears), year].sort((a, b) => a - b)
 
-            return (
-              <Link
-                key={year}
-            href={`/dashboard${buildDashboardQueryString({
-                  ...data.filters,
-                  years: nextYears.join(','),
-                })}`}
-                className={`bs-button-secondary px-3 py-1.5 ${
-                  isSelected ? 'bg-slate-900 text-white' : ''
-                }`}
-              >
-                {year}
-              </Link>
-            )
-          })}
-        </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {data.trends.length ? (
-            data.trends.slice(-8).map((row) => (
+              return (
+                <Link
+                  key={year}
+                  href={`/dashboard${buildDashboardQueryString({
+                    ...data.filters,
+                    years: nextYears.join(','),
+                  })}`}
+                  className={`bs-button-secondary px-3 py-1.5 ${
+                    isSelected ? 'bg-slate-900 text-white' : ''
+                  }`}
+                >
+                  {year}
+                </Link>
+              )
+            })}
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {data.trends.length ? (
+              data.trends.slice(-8).map((row) => (
                 <TrendRowVisual
                   key={row.launchYear}
                   row={row}
@@ -997,8 +984,10 @@ export default async function ResearchDashboard({
           </div>
         </div>
       </section>
+      ) : null}
 
-      <section className={`bs-panel ${activeView === 'campaigns' ? '' : 'hidden'}`}>
+      {activeView === 'campaigns' ? (
+      <section id="onboarding-target-campaigns" className="bs-panel">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="bs-kicker">Comparable campaigns</p>
@@ -1112,8 +1101,9 @@ export default async function ResearchDashboard({
         ) : null}
 
         <div className="mt-6 grid gap-4 xl:grid-cols-2">
-        {data.campaigns.length ? (
-            data.campaigns.map((campaign) => {
+          {data.campaigns.length ? (
+            data.campaigns.map((campaign, index) => {
+              const onboardingCardIndex = data.campaigns.length > 2 ? 2 : 0
               const isSelected = selectedCompareIds.has(campaign.campaignId)
               const categoryMismatch =
                 !isSelected &&
@@ -1125,11 +1115,12 @@ export default async function ResearchDashboard({
               return (
                 <article
                   key={campaign.campaignId}
+                  id={index === onboardingCardIndex ? 'onboarding-target-campaign-card' : undefined}
                   className="rounded-[1.5rem] border border-bs-border bg-bs-panelAlt p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
                 >
                 <div className="flex flex-wrap gap-2">
                   <span className="bs-data-chip bg-slate-900 text-white">
-                    {campaign.normalizedStatus}
+                    {formatNormalizedStatusLabel(campaign.normalizedStatus)}
                   </span>
                   {campaign.isFullyResearchable ? (
                     <span className="bs-data-chip bg-emerald-100 text-emerald-800">
@@ -1347,6 +1338,7 @@ export default async function ResearchDashboard({
           </form>
         ) : null}
       </section>
+      ) : null}
       </> : null}
     </section>
   )

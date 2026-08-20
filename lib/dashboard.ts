@@ -5,7 +5,7 @@ import {
   tokenizeResearchIdea,
 } from '@/lib/research-query'
 
-const POC_SUBSET_KEY = 'ttrpg_poc'
+const ACTIVE_DATASET_SCOPE = 'full_dataset'
 
 export type DashboardFilters = {
   view?: string
@@ -13,6 +13,7 @@ export type DashboardFilters = {
   membershipStatus?: string
   confidenceLabel?: string
   categorySlug?: string
+  categoryParent?: string
   taxonomyLabel?: string
   durationBucket?: string
   rawState?: string
@@ -98,6 +99,7 @@ type DashboardCampaignCandidate = Omit<
 
 export type DashboardCategoryRow = {
   categorySlug: string
+  categoryParent: string | null
   categoryName: string | null
 }
 
@@ -118,17 +120,20 @@ export type DashboardOverview = {
 }
 
 function toRequiredFilters(filters: DashboardFilters): Required<DashboardFilters> {
+  const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
+
   return {
     view: filters.view === 'analysis' ? 'analysis' : 'campaigns',
-    search: filters.search?.trim() ?? '',
-    membershipStatus: filters.membershipStatus?.trim() ?? '',
-    confidenceLabel: filters.confidenceLabel?.trim() ?? '',
-    categorySlug: filters.categorySlug?.trim() ?? '',
-    taxonomyLabel: filters.taxonomyLabel?.trim() ?? '',
-    durationBucket: filters.durationBucket?.trim() ?? '',
-    rawState: filters.rawState?.trim() ?? '',
-    minGoal: filters.minGoal?.trim() ?? '',
-    minPledged: filters.minPledged?.trim() ?? '',
+    search: text(filters.search),
+    membershipStatus: text(filters.membershipStatus),
+    confidenceLabel: text(filters.confidenceLabel),
+    categorySlug: text(filters.categorySlug) === '__all__' ? '' : text(filters.categorySlug),
+    categoryParent: text(filters.categoryParent) === '__all__' ? '' : text(filters.categoryParent),
+    taxonomyLabel: text(filters.taxonomyLabel),
+    durationBucket: text(filters.durationBucket),
+    rawState: text(filters.rawState),
+    minGoal: text(filters.minGoal),
+    minPledged: text(filters.minPledged),
     cardLimit: ['12', '24', '48', '100'].includes(filters.cardLimit ?? '')
       ? filters.cardLimit!
       : '12',
@@ -148,9 +153,9 @@ function toRequiredFilters(filters: DashboardFilters): Required<DashboardFilters
       ? filters.sortBy!
       : 'recommended',
     sortDir: filters.sortDir === 'asc' ? 'asc' : 'desc',
-    years: filters.years?.trim() ?? '',
-    launchWindow: filters.launchWindow?.trim() ?? '',
-    minimumBackers: filters.minimumBackers?.trim() ?? '',
+    years: text(filters.years),
+    launchWindow: text(filters.launchWindow),
+    minimumBackers: text(filters.minimumBackers),
     includeFailures:
       filters.includeFailures === 'false' ? 'false' : 'true',
     fullyResearchableOnly:
@@ -305,6 +310,10 @@ export async function getDashboardOverview(
       filters.categorySlug === ''
         ? sql``
         : sql`AND COALESCE(cr.kickstarter_category_slug, '') = ${filters.categorySlug}`
+    const categoryParentFilter =
+      filters.categoryParent === ''
+        ? sql``
+        : sql`AND COALESCE(cr.kickstarter_parent_category_name, '') = ${filters.categoryParent}`
 
     const taxonomyFilter =
       filters.taxonomyLabel === ''
@@ -338,11 +347,11 @@ export async function getDashboardOverview(
       filters.durationBucket === ''
         ? sql``
         : filters.durationBucket === 'short'
-          ? sql`AND cn.campaign_duration_days IS NOT NULL AND cn.campaign_duration_days <= 21`
+          ? sql`AND cn.campaign_duration_days BETWEEN 1 AND 15`
           : filters.durationBucket === 'medium'
-            ? sql`AND cn.campaign_duration_days BETWEEN 22 AND 35`
+            ? sql`AND cn.campaign_duration_days BETWEEN 16 AND 30`
             : filters.durationBucket === 'long'
-              ? sql`AND cn.campaign_duration_days IS NOT NULL AND cn.campaign_duration_days >= 36`
+              ? sql`AND cn.campaign_duration_days IS NOT NULL AND cn.campaign_duration_days >= 31`
               : filters.durationBucket === 'unknown'
                 ? sql`AND cn.campaign_duration_days IS NULL`
                 : sql``
@@ -353,9 +362,11 @@ export async function getDashboardOverview(
       minPledgedValue === null ? sql`` : sql`AND cmn.usd_pledged >= ${minPledgedValue}`
 
     const outcomeFilter =
-      filters.includeFailures === 'false'
-        ? sql`AND cn.normalized_status = 'successful'`
-        : sql`AND cn.normalized_status IN ('successful', 'unsuccessful')`
+      filters.rawState !== ''
+        ? sql``
+        : filters.includeFailures === 'false'
+          ? sql`AND cn.normalized_status = 'successful'`
+          : sql`AND cn.normalized_status IN ('successful', 'unsuccessful')`
 
     const launchWindowFilter =
       launchWindowStart === null
@@ -374,12 +385,13 @@ export async function getDashboardOverview(
 
     const baseWhereWithoutYearAndTaxonomyFilter = sql`
       WHERE
-        sm.subset_key = ${POC_SUBSET_KEY}
+        sm.subset_key = ${ACTIVE_DATASET_SCOPE}
         AND sm.membership_status <> 'exclude'
         ${searchFilter}
         ${membershipFilter}
         ${confidenceFilter}
         ${categoryFilter}
+        ${categoryParentFilter}
         ${rawStateFilter}
         ${durationFilter}
         ${minGoalFilter}
@@ -408,15 +420,16 @@ export async function getDashboardOverview(
     const categories = await sql<DashboardCategoryRow[]>`
       SELECT DISTINCT
         cr.kickstarter_category_slug AS "categorySlug",
+        MAX(cr.kickstarter_parent_category_name) AS "categoryParent",
         MAX(cr.kickstarter_category_name) AS "categoryName"
       FROM subset_memberships sm
       INNER JOIN campaigns_raw cr ON cr.id = sm.campaign_id
       WHERE
-        sm.subset_key = ${POC_SUBSET_KEY}
+        sm.subset_key = ${ACTIVE_DATASET_SCOPE}
         AND sm.membership_status <> 'exclude'
         AND cr.kickstarter_category_slug IS NOT NULL
       GROUP BY cr.kickstarter_category_slug
-      ORDER BY cr.kickstarter_category_slug ASC
+      ORDER BY MAX(cr.kickstarter_parent_category_name) ASC, MAX(cr.kickstarter_category_name) ASC
     `
 
     const [summaryRow] = await sql<DashboardSummary[]>`
@@ -458,20 +471,23 @@ export async function getDashboardOverview(
 
     const taxonomy = await sql<DashboardTaxonomyRow[]>`
       SELECT
-        tn.label AS "label",
+        labeled.label AS "label",
         COUNT(*)::int AS "campaignCount"
-      FROM subset_memberships sm
-      INNER JOIN campaigns_raw cr ON cr.id = sm.campaign_id
-      INNER JOIN campaigns_normalized cn ON cn.campaign_id = cr.id
-      LEFT JOIN campaign_currency_normalizations cmn ON cmn.campaign_id = cr.id
-      INNER JOIN campaign_classifications cc ON cc.campaign_id = cr.id
-      INNER JOIN taxonomy_nodes tn ON tn.id = cc.taxonomy_node_id
-      ${baseWhereWithoutYearFilter}
-      ${yearFilter}
-      AND cc.is_primary = true
-      GROUP BY tn.label
-      ORDER BY COUNT(*) DESC, tn.label ASC
-      LIMIT 5
+      FROM (
+        SELECT DISTINCT
+          cr.id,
+          tn.label
+        FROM subset_memberships sm
+        INNER JOIN campaigns_raw cr ON cr.id = sm.campaign_id
+        INNER JOIN campaigns_normalized cn ON cn.campaign_id = cr.id
+        LEFT JOIN campaign_currency_normalizations cmn ON cmn.campaign_id = cr.id
+        INNER JOIN campaign_classifications cc ON cc.campaign_id = cr.id
+        INNER JOIN taxonomy_nodes tn ON tn.id = cc.taxonomy_node_id
+        ${baseWhereWithoutYearAndTaxonomyFilter}
+        ${yearFilter}
+      ) AS labeled
+      GROUP BY labeled.label
+      ORDER BY COUNT(*) DESC, labeled.label ASC
     `
 
     const trends = await sql<DashboardTrendRow[]>`

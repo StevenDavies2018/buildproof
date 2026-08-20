@@ -4,7 +4,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { AuthUser } from '@/lib/auth'
-import { ONBOARDING_OPEN_EVENT } from '@/lib/onboarding'
+import {
+  getOnboardingStorageKey,
+  ONBOARDING_OPEN_EVENT,
+  ONBOARDING_STATUS_CHANGED_EVENT,
+  type OnboardingStatus,
+} from '@/lib/onboarding'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -26,12 +31,42 @@ function getInitialTheme(): ThemeMode {
 export default function AppNavbar({ user }: { user: AuthUser | null }) {
   const pathname = usePathname()
   const [theme, setTheme] = useState<ThemeMode>('dark')
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>('not_started')
 
   useEffect(() => {
     const nextTheme = getInitialTheme()
     setTheme(nextTheme)
     document.documentElement.dataset.theme = nextTheme
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setOnboardingStatus('not_started')
+      return
+    }
+    const userId = user.id
+
+    function readStatus() {
+      try {
+        const stored = window.localStorage.getItem(getOnboardingStorageKey(userId))
+        setOnboardingStatus(
+          stored === 'completed' || stored === 'skipped' ? stored : 'not_started',
+        )
+      } catch {
+        setOnboardingStatus('not_started')
+      }
+    }
+
+    function handleStatusChanged(event: Event) {
+      const detail = (event as CustomEvent<{ userId?: number; status?: OnboardingStatus }>).detail
+      if (detail?.userId && detail.userId !== userId) return
+      readStatus()
+    }
+
+    readStatus()
+    window.addEventListener(ONBOARDING_STATUS_CHANGED_EVENT, handleStatusChanged)
+    return () => window.removeEventListener(ONBOARDING_STATUS_CHANGED_EVENT, handleStatusChanged)
+  }, [user])
 
   if (pathname === '/' || pathname?.startsWith('/account')) return null
 
@@ -94,7 +129,9 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
               </Link>
               {user ? (
                 <button type="button" onClick={openHelpWalkthrough} className="bs-nav-link">
-                  Help
+                  {onboardingStatus === 'completed' || onboardingStatus === 'skipped'
+                    ? 'Restart walkthrough'
+                    : 'Help'}
                 </button>
               ) : null}
             </nav>

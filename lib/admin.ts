@@ -194,9 +194,9 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
         ${minPledgedFilter}
         AND (
           ${durationBucket} = ''
-          OR (${durationBucket} = 'short' AND cn.campaign_duration_days IS NOT NULL AND cn.campaign_duration_days <= 21)
-          OR (${durationBucket} = 'medium' AND cn.campaign_duration_days BETWEEN 22 AND 35)
-          OR (${durationBucket} = 'long' AND cn.campaign_duration_days IS NOT NULL AND cn.campaign_duration_days >= 36)
+          OR (${durationBucket} = 'short' AND cn.campaign_duration_days BETWEEN 1 AND 15)
+          OR (${durationBucket} = 'medium' AND cn.campaign_duration_days BETWEEN 16 AND 30)
+          OR (${durationBucket} = 'long' AND cn.campaign_duration_days IS NOT NULL AND cn.campaign_duration_days >= 31)
           OR (${durationBucket} = 'unknown' AND cn.campaign_duration_days IS NULL)
         )
       ORDER BY ${sql.unsafe(orderByClause)}

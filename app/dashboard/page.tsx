@@ -1,6 +1,7 @@
 import ResearchDashboard from '@/components/research-dashboard'
 import { SavedResearchPanel } from '@/components/saved-research'
 import { type DashboardFilters } from '@/lib/dashboard'
+import { toDashboardFilters } from '@/lib/research-filters'
 
 export const preferredRegion = 'home'
 export const dynamic = 'force-dynamic'
@@ -14,6 +15,7 @@ export default async function Home({
     membershipStatus?: string
     confidenceLabel?: string
     categorySlug?: string
+    categoryParent?: string
     taxonomyLabel?: string
     durationBucket?: string
     rawState?: string
@@ -34,25 +36,8 @@ export default async function Home({
   const resolvedSearchParams = (await searchParams) ?? {}
 
   const filters: DashboardFilters = {
+    ...toDashboardFilters(resolvedSearchParams),
     view: resolvedSearchParams.view,
-    search: resolvedSearchParams.search,
-    membershipStatus: resolvedSearchParams.membershipStatus,
-    confidenceLabel: resolvedSearchParams.confidenceLabel,
-    categorySlug: resolvedSearchParams.categorySlug,
-    taxonomyLabel: resolvedSearchParams.taxonomyLabel,
-    durationBucket: resolvedSearchParams.durationBucket,
-    rawState: resolvedSearchParams.rawState,
-    minGoal: resolvedSearchParams.minGoal,
-    minPledged: resolvedSearchParams.minPledged,
-    cardLimit: resolvedSearchParams.cardLimit,
-    cardOffset: resolvedSearchParams.cardOffset,
-    sortBy: resolvedSearchParams.sortBy,
-    sortDir: resolvedSearchParams.sortDir,
-    years: resolvedSearchParams.years,
-    launchWindow: resolvedSearchParams.launchWindow,
-    minimumBackers: resolvedSearchParams.minimumBackers,
-    includeFailures: resolvedSearchParams.includeFailures,
-    fullyResearchableOnly: resolvedSearchParams.fullyResearchableOnly,
   }
   const compareIds = (resolvedSearchParams.compare ?? '')
     .split(',')

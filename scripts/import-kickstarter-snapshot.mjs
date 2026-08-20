@@ -237,6 +237,80 @@ function buildTransformedRecord(record) {
   }
 }
 
+function takeJsonObject(buffer) {
+  const start = buffer.indexOf('{')
+  if (start === -1) return null
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let index = start; index < buffer.length; index += 1) {
+    const character = buffer[index]
+
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (character === '\\') {
+        escaped = true
+      } else if (character === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (character === '"') {
+      inString = true
+    } else if (character === '{') {
+      depth += 1
+    } else if (character === '}') {
+      depth -= 1
+      if (depth === 0) {
+        return {
+          json: buffer.slice(start, index + 1),
+          remainder: buffer.slice(index + 1),
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+function escapeRawJsonControls(value) {
+  let output = ''
+  let inString = false
+  let escaped = false
+
+  for (const character of value) {
+    if (inString) {
+      if (escaped) {
+        escaped = false
+        output += character
+      } else if (character === '\\') {
+        escaped = true
+        output += character
+      } else if (character === '"') {
+        inString = false
+        output += character
+      } else if (character === '\n') {
+        output += '\\n'
+      } else if (character === '\r') {
+        output += '\\r'
+      } else if (character === '\t') {
+        output += '\\t'
+      } else {
+        output += character
+      }
+    } else {
+      output += character
+      if (character === '"') inString = true
+    }
+  }
+
+  return output
+}
+
 async function upsertCampaign(sql, datasetImportId, transformed) {
   const raw = transformed.raw
   const normalized = transformed.normalized
@@ -399,6 +473,10 @@ async function main() {
   loadLocalEnv()
 
   const args = parseArgs(process.argv.slice(2))
+  const concurrency = Math.max(
+    1,
+    Number.parseInt(process.env.IMPORT_CONCURRENCY ?? '4', 10) || 4,
+  )
 
   if (!fs.existsSync(args.file)) {
     throw new Error(`Snapshot file not found: ${args.file}`)
@@ -444,6 +522,27 @@ async function main() {
     input,
     crlfDelay: Infinity,
   })
+  let recordBuffer = ''
+  const pendingWrites = new Set()
+
+  const processRecord = async (record) => {
+    const transformed = buildTransformedRecord(record)
+
+    if (!transformed.raw.kickstarter_project_id) {
+      stats.skipped += 1
+      return
+    }
+
+    if (!args.dryRun) {
+      const campaignId = await upsertCampaign(sql, datasetImportId, transformed)
+      await upsertSubsetMembership(sql, campaignId, args, transformed)
+    }
+
+    stats.written += 1
+    if (stats.written % 250 === 0) {
+      console.log(`Processed ${stats.written} campaigns...`)
+    }
+  }
 
   try {
     for await (const line of rl) {
@@ -451,35 +550,38 @@ async function main() {
         continue
       }
 
-      if (args.limit !== null && stats.written >= args.limit) {
+      if (args.limit !== null && stats.read + pendingWrites.size >= args.limit) {
         break
       }
 
-      stats.read += 1
+      recordBuffer += `${line}\n`
 
-      try {
-        const record = JSON.parse(line)
-        const transformed = buildTransformedRecord(record)
+      let extracted
+      while ((extracted = takeJsonObject(recordBuffer))) {
+        recordBuffer = extracted.remainder
+        try {
+          const record = JSON.parse(escapeRawJsonControls(extracted.json))
+          stats.read += 1
+          const write = processRecord(record)
+          pendingWrites.add(write)
+          write.finally(() => pendingWrites.delete(write))
 
-        if (!transformed.raw.kickstarter_project_id) {
-          stats.skipped += 1
-          continue
+          // Keep a bounded number of database operations in flight. This is
+          // faster than serial writes without overwhelming the Neon pool.
+          if (pendingWrites.size >= concurrency) {
+            await Promise.race(pendingWrites)
+          }
+        } catch (error) {
+          stats.errors += 1
+          console.error(`Failed while reading record ${stats.read}:`, error)
         }
-
-        if (!args.dryRun) {
-          const campaignId = await upsertCampaign(sql, datasetImportId, transformed)
-          await upsertSubsetMembership(sql, campaignId, args, transformed)
-        }
-
-        stats.written += 1
-        if (stats.written % 250 === 0) {
-          console.log(`Processed ${stats.written} campaigns...`)
-        }
-      } catch (error) {
-        stats.errors += 1
-        console.error(`Failed on line ${stats.read}:`, error)
       }
     }
+    if (recordBuffer.trim()) {
+      stats.errors += 1
+      console.error('Failed to parse trailing JSON record')
+    }
+    await Promise.all(pendingWrites)
   } finally {
     rl.close()
     input.close()

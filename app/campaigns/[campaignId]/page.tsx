@@ -255,7 +255,7 @@ export default async function CampaignDetailPage({
                   {normalizeModeLabel(campaign.money.normalizationMode)}
                 </p>
                 <p className="mt-2 text-xs leading-6 text-slate-500">
-                  Native values are preserved. USD values use Kickstarter's static USD rate first, then auditable source-field fallbacks when that rate is unavailable.
+                  Native values are preserved. USD values use Kickstarter&apos;s static USD rate first, then auditable source-field fallbacks when that rate is unavailable.
                 </p>
                 <p className="mt-2 text-xs leading-6 text-slate-500">
                   Confidence: {campaign.money.rateConfidence ?? 'unavailable'} | Rate: {campaign.money.rate ?? 'n/a'} | Snapshot: {campaign.money.snapshotVersion ?? 'n/a'}

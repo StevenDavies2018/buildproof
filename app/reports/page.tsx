@@ -1,9 +1,15 @@
 import Link from 'next/link'
+import { formatNormalizedStatusLabel, RAW_STATE_OPTIONS } from '@/lib/state-labels'
 import {
   type CategoryAnalysisMetric,
   getCategoryAnalysisMetrics,
 } from '@/lib/category-analysis'
+import { HierarchicalCategoryFilters } from '@/components/hierarchical-category-filters'
 import { getDashboardOverview } from '@/lib/dashboard'
+import {
+  type ResearchFilterSearchParams,
+  toDashboardFilters,
+} from '@/lib/research-filters'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,19 +32,18 @@ const CATEGORY_SORTS: Array<{ value: CategorySort; label: string }> = [
   { value: 'money_coverage', label: 'Money coverage' },
 ]
 
+const DURATION_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'short', label: 'Short (1-15d)' },
+  { value: 'medium', label: 'Medium (16-30d)' },
+  { value: 'long', label: 'Long (31d+)' },
+  { value: 'unknown', label: 'Unknown' },
+]
+
 type CategoryDisplayMetric = Pick<
   CategoryAnalysisMetric,
   'campaignCount' | 'successRate' | 'medianGoalUsd' | 'moneyComparableCount'
 >
-
-function categorySortValue(metric: CategoryDisplayMetric, sortBy: CategorySort) {
-  if (sortBy === 'campaigns') return metric.campaignCount
-  if (sortBy === 'success_rate') return metric.successRate
-  if (sortBy === 'median_goal') return metric.medianGoalUsd
-  return metric.campaignCount
-    ? (metric.moneyComparableCount / metric.campaignCount) * 100
-    : null
-}
 
 type ReportYear = {
   launchYear: number
@@ -53,6 +58,51 @@ type ReportYear = {
   medianAveragePledgeUsd: number | null
   medianFundingMultiple: number | null
   moneyComparableCount: number
+}
+
+type ReportsSearchParams = ResearchFilterSearchParams & {
+  window?: string
+  category?: string
+  trend?: string
+  sort?: string
+  order?: string
+  year?: string
+}
+
+function createEmptyMetric(
+  taxonomyLabel: string,
+  metricWindow: CategoryAnalysisMetric['metricWindow'],
+): CategoryAnalysisMetric {
+  return {
+    dimensionKey: taxonomyLabel,
+    taxonomyNodeId: null,
+    taxonomyLabel,
+    taxonomyParentLabel: null,
+    metricWindow,
+    windowStart: metricWindow === 'last_24_months' ? '2024-08-12T00:00:00.000Z' : null,
+    windowEnd: '2026-08-12T23:59:59.000Z',
+    campaignCount: 0,
+    successCount: 0,
+    failureCount: 0,
+    successRate: null,
+    medianGoalUsd: null,
+    medianPledgedUsd: null,
+    medianBackers: null,
+    medianAveragePledgeUsd: null,
+    medianFundingMultiple: null,
+    recentCampaignCount: 0,
+    moneyComparableCount: 0,
+    trendLabel: 'insufficient_data',
+    trendDetails: {
+      method: 'year-over-year-count-ratio',
+      years: [],
+    },
+    sourceSnapshotVersion: '2026-08-12',
+    currencyNormalizationVersion: 'kickstarter-static-usd-v1',
+    classificationVersion: 'campaign-classifications-live',
+    analysisVersion: 'reporting-dynamic-v1',
+    calculatedAt: new Date('2026-08-20T00:00:00.000Z').toISOString(),
+  }
 }
 
 function numeric(value: unknown) {
@@ -113,6 +163,7 @@ function getYearRows(metric: CategoryAnalysisMetric): ReportYear[] {
       const launchYear = numeric(row.launchYear)
       const campaignCount = numeric(row.campaignCount)
       if (launchYear === null || campaignCount === null) return null
+
       return {
         launchYear,
         campaignCount,
@@ -129,6 +180,15 @@ function getYearRows(metric: CategoryAnalysisMetric): ReportYear[] {
       }
     })
     .filter((row): row is ReportYear => row !== null)
+}
+
+function categorySortValue(metric: CategoryDisplayMetric, sortBy: CategorySort) {
+  if (sortBy === 'campaigns') return metric.campaignCount
+  if (sortBy === 'success_rate') return metric.successRate
+  if (sortBy === 'median_goal') return metric.medianGoalUsd
+  return metric.campaignCount
+    ? (metric.moneyComparableCount / metric.campaignCount) * 100
+    : null
 }
 
 function MetricCard({
@@ -153,20 +213,12 @@ function CategoryCard({
   metric,
   displayMetric,
   selected,
-  metricWindow,
-  selectedYear,
-  trendFilter,
-  sortBy,
-  sortOrder,
+  href,
 }: {
   metric: CategoryAnalysisMetric
   displayMetric: CategoryDisplayMetric
   selected: boolean
-  metricWindow: CategoryAnalysisMetric['metricWindow']
-  selectedYear: number | null
-  trendFilter: TrendFilter
-  sortBy: CategorySort
-  sortOrder: SortOrder
+  href: string
 }) {
   const coverage = displayMetric.campaignCount
     ? (displayMetric.moneyComparableCount / displayMetric.campaignCount) * 100
@@ -215,11 +267,7 @@ function CategoryCard({
           </p>
         </div>
       </div>
-      <Link
-        href={`/reports?window=${metricWindow}&category=${encodeURIComponent(metric.dimensionKey)}&trend=${trendFilter}&sort=${sortBy}&order=${sortOrder}${selectedYear === null ? '' : `&year=${selectedYear}`}`}
-        scroll={false}
-        className="bs-button-secondary mt-[30px] inline-flex"
-      >
+      <Link href={href} scroll={false} className="bs-button-secondary mt-[30px] inline-flex">
         View category report
       </Link>
     </article>
@@ -229,22 +277,17 @@ function CategoryCard({
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{
-    window?: string
-    domain?: string
-    category?: string
-    trend?: string
-    sort?: string
-    order?: string
-    year?: string
-  }>
+  searchParams?: Promise<ReportsSearchParams>
 }) {
   const resolvedSearchParams = (await searchParams) ?? {}
   const metricWindow: CategoryAnalysisMetric['metricWindow'] =
     resolvedSearchParams.window === 'last_24_months' ? 'last_24_months' : 'all_time'
-  const metrics = await getCategoryAnalysisMetrics(metricWindow)
-  const selectedDomain = resolvedSearchParams.domain === 'ttrpg' ? 'ttrpg' : 'ttrpg'
-  const requestedCategory = resolvedSearchParams.category ?? 'all'
+  const dashboardFilters = toDashboardFilters(resolvedSearchParams)
+  const selectedCategory = typeof resolvedSearchParams.taxonomyLabel === 'string'
+    ? resolvedSearchParams.taxonomyLabel.trim()
+    : typeof resolvedSearchParams.category === 'string'
+      ? resolvedSearchParams.category.trim()
+      : ''
   const trendFilter: TrendFilter = TREND_FILTERS.some(
     (filter) => filter.value === resolvedSearchParams.trend,
   )
@@ -256,15 +299,22 @@ export default async function ReportsPage({
     ? (resolvedSearchParams.sort as CategorySort)
     : 'campaigns'
   const sortOrder: SortOrder = resolvedSearchParams.order === 'asc' ? 'asc' : 'desc'
-  const selectedCategoryMetric = metrics.find(
-    (metric) =>
-      metric.dimensionKey === requestedCategory ||
-      metric.taxonomyLabel.toLowerCase() === requestedCategory.toLowerCase(),
-  )
-  const requestedMetric = selectedCategoryMetric ?? metrics[0]
-  const hasSelectedCategory = requestedCategory !== 'all' && Boolean(selectedCategoryMetric)
 
-  if (!requestedMetric) {
+  const baseFilters = {
+    ...dashboardFilters,
+    taxonomyLabel: '',
+    cardLimit: '12',
+    cardOffset: '0',
+    sortBy: 'recommended',
+    sortDir: 'desc',
+  }
+
+  const [metrics, filterSeed] = await Promise.all([
+    getCategoryAnalysisMetrics(metricWindow, baseFilters),
+    getDashboardOverview(baseFilters),
+  ])
+
+  if (!metrics.length) {
     return (
       <main className="bs-shell">
         <div className="bs-container">
@@ -272,7 +322,7 @@ export default async function ReportsPage({
             <p className="bs-kicker">Reporting View</p>
             <h1 className="bs-title mt-3 text-4xl font-semibold">Reports are not available yet</h1>
             <p className="mt-4 text-sm leading-7 text-slate-600">
-              Run the category analysis refresh job to materialize the reporting dataset.
+              The reporting slice needs a valid filtered dataset before category summaries can be shown.
             </p>
           </section>
         </div>
@@ -280,24 +330,24 @@ export default async function ReportsPage({
     )
   }
 
-  const availableYears = getYearRows(metrics[0] ?? requestedMetric)
+  const selectedMetric = selectedCategory === ''
+    ? null
+    : metrics.find((metric) => metric.dimensionKey.toLowerCase() === selectedCategory.toLowerCase())
+      ?? createEmptyMetric(selectedCategory, metricWindow)
+  const availableYears = getYearRows(metrics[0])
   const requestedYear = Number(resolvedSearchParams.year)
   const selectedYear = Number.isInteger(requestedYear) && availableYears.some(
     (year) => year.launchYear === requestedYear,
   )
     ? requestedYear
     : null
-  const selectedMetric = selectedYear !== null && !getYearRows(requestedMetric).some(
-    (year) => year.launchYear === selectedYear,
-  )
-    ? metrics[0]
-    : requestedMetric
-  const selectedYearMetric = selectedYear === null
-    ? null
-    : getYearRows(selectedMetric).find((year) => year.launchYear === selectedYear) ?? null
+  const selectedYearMetric = selectedMetric && selectedYear !== null
+    ? getYearRows(selectedMetric).find((year) => year.launchYear === selectedYear) ?? null
+    : null
   const displayedMetric = selectedYearMetric ?? selectedMetric
-  const categories = metrics.filter((metric) => metric.dimensionKey !== 'all')
-  const categoryEntries = categories
+
+  const categoryEntries = metrics
+    .filter((metric) => metric.dimensionKey !== 'all')
     .map((metric) => ({
       metric,
       displayMetric: selectedYear === null
@@ -307,13 +357,7 @@ export default async function ReportsPage({
     .filter((entry): entry is { metric: CategoryAnalysisMetric; displayMetric: CategoryAnalysisMetric | ReportYear } => (
       entry.displayMetric !== null
     ))
-  const categoryGroups = categoryEntries.reduce((groups, entry) => {
-    const parent = entry.metric.taxonomyParentLabel ?? 'Other classifications'
-    const existing = groups.get(parent) ?? []
-    existing.push(entry)
-    groups.set(parent, existing)
-    return groups
-  }, new Map<string, typeof categoryEntries>())
+
   const filteredCategories = categoryEntries
     .filter(({ metric }) => trendFilter === 'all' || metric.trendLabel === trendFilter)
     .sort((left, right) => {
@@ -328,51 +372,47 @@ export default async function ReportsPage({
       if (difference === 0) return left.metric.taxonomyLabel.localeCompare(right.metric.taxonomyLabel)
       return sortOrder === 'asc' ? difference : -difference
     })
-  const years = getYearRows(selectedMetric)
+
+  const years = selectedMetric ? getYearRows(selectedMetric) : getYearRows(metrics[0])
   const maxYearCount = Math.max(...years.map((year) => year.campaignCount), 1)
-  const moneyCoverage = displayedMetric.campaignCount
+  const moneyCoverage = displayedMetric && displayedMetric.campaignCount
     ? (displayedMetric.moneyComparableCount / displayedMetric.campaignCount) * 100
     : 0
-  const campaignSliceHref =
-    selectedMetric.dimensionKey === 'all'
-      ? `/?view=campaigns${selectedYear === null ? '' : `&years=${selectedYear}`}`
-      : `/?view=campaigns&taxonomyLabel=${encodeURIComponent(selectedMetric.taxonomyLabel)}${selectedYear === null ? '' : `&years=${selectedYear}`}`
-  const supportingCampaigns = await getDashboardOverview({
-    view: 'campaigns',
-    taxonomyLabel: selectedMetric.dimensionKey === 'all' ? '' : selectedMetric.taxonomyLabel,
-    years: selectedYear === null ? '' : String(selectedYear),
-    cardLimit: '100',
-    sortBy: 'recommended',
-    sortDir: 'desc',
-  })
+
+  function buildHref(extra: Record<string, string | undefined>) {
+    const params = new URLSearchParams()
+    params.set('window', metricWindow)
+    if (dashboardFilters.search) params.set('search', dashboardFilters.search)
+    if (dashboardFilters.categoryParent) params.set('categoryParent', dashboardFilters.categoryParent)
+    if (dashboardFilters.categorySlug) params.set('categorySlug', dashboardFilters.categorySlug)
+    if (dashboardFilters.rawState) params.set('rawState', dashboardFilters.rawState)
+    if (dashboardFilters.durationBucket) params.set('durationBucket', dashboardFilters.durationBucket)
+    if (dashboardFilters.minGoal) params.set('minGoal', dashboardFilters.minGoal)
+    if (dashboardFilters.minPledged) params.set('minPledged', dashboardFilters.minPledged)
+
+    for (const [key, value] of Object.entries(extra)) {
+      if (!value) {
+        params.delete(key)
+      } else {
+        params.set(key, value)
+      }
+    }
+
+    return `/reports?${params.toString()}`
+  }
+
+  const supportingCampaigns = selectedMetric
+    ? await getDashboardOverview({
+        ...baseFilters,
+        taxonomyLabel: selectedMetric.taxonomyLabel,
+        years: selectedYear === null ? dashboardFilters.years : String(selectedYear),
+        cardLimit: '100',
+      })
+    : null
 
   return (
     <main className="bs-shell">
       <div className="bs-container grid gap-8">
-        {hasSelectedCategory ? <section className="overflow-hidden rounded-[2rem] border border-blue-300/30 bg-[linear-gradient(135deg,_rgba(15,23,42,0.98)_0%,_rgba(30,64,175,0.96)_58%,_rgba(14,165,233,0.88)_100%)] p-8 shadow-[0_24px_60px_rgba(30,64,175,0.18)] md:p-10">
-          <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-4xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-blue-100/80">
-                Reporting View
-              </p>
-              <h1 className="mt-4 font-mono text-4xl font-semibold tracking-tight text-white md:text-6xl">
-                Category evidence, already calculated.
-              </h1>
-              <p className="mt-5 max-w-3xl text-base leading-8 text-white/90">
-                Read versioned category performance without recomputing the full Kickstarter snapshot. Every report links back to its supporting campaign slice.
-              </p>
-            </div>
-            <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-5 text-sm text-white backdrop-blur">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-100/70">
-                Report provenance
-              </p>
-              <p className="mt-3">Analysis: {selectedMetric.analysisVersion}</p>
-              <p>Snapshot: {selectedMetric.sourceSnapshotVersion ?? 'n/a'}</p>
-              <p>Calculated: {new Date(selectedMetric.calculatedAt).toLocaleDateString('en-US')}</p>
-            </div>
-          </div>
-        </section> : null}
-
         <section className="bs-panel">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -380,14 +420,14 @@ export default async function ReportsPage({
               <h2 className="bs-title mt-2 text-2xl font-semibold">Choose the evidence slice</h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-                <Link
-                href={`/reports?window=all_time&domain=${selectedDomain}&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}`}
+              <Link
+                href={buildHref({ window: 'all_time', taxonomyLabel: selectedCategory || undefined })}
                 className={metricWindow === 'all_time' ? 'bs-button-primary' : 'bs-button-secondary'}
               >
                 All time
               </Link>
               <Link
-                href={`/reports?window=last_24_months&domain=${selectedDomain}&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}`}
+                href={buildHref({ window: 'last_24_months', taxonomyLabel: selectedCategory || undefined })}
                 className={metricWindow === 'last_24_months' ? 'bs-button-primary' : 'bs-button-secondary'}
               >
                 Last 24 months
@@ -395,147 +435,189 @@ export default async function ReportsPage({
             </div>
           </div>
 
-          <form method="get" action="/reports" className="mt-6 grid gap-3 md:grid-cols-[1fr,auto] md:items-end">
+          <form method="get" action="/reports" className="mt-6 grid gap-4">
             <input type="hidden" name="window" value={metricWindow} />
-            <input type="hidden" name="domain" value={selectedDomain} />
-            <input type="hidden" name="trend" value={trendFilter} />
-            <input type="hidden" name="sort" value={categorySort} />
-            <input type="hidden" name="order" value={sortOrder} />
-            {selectedYear !== null ? <input type="hidden" name="year" value={selectedYear} /> : null}
-            <label className="grid gap-2">
-              <span className="bs-kicker">Main category</span>
-              <select name="domain" defaultValue={selectedDomain} className="bs-field">
-                <option value="ttrpg">TTRPG</option>
-              </select>
-            </label>
-            <label className="grid gap-2">
-              <span className="bs-kicker">Subcategory</span>
-              <select name="category" defaultValue={selectedMetric.dimensionKey} className="bs-field">
-                <option value="all">None</option>
-                {Array.from(categoryGroups.entries()).map(([parent, entries]) => (
-                  <optgroup key={parent} label={parent}>
-                    {entries.map(({ metric, displayMetric }) => (
-                      <option key={metric.dimensionKey} value={metric.dimensionKey}>
-                        {metric.taxonomyLabel} ({formatInteger(displayMetric.campaignCount)})
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <label className="grid gap-2 xl:col-span-2">
+                <span className="bs-kicker">Research idea</span>
+                <input
+                  type="text"
+                  name="search"
+                  defaultValue={dashboardFilters.search}
+                  placeholder="Optional keyword query"
+                  className="bs-field"
+                />
+              </label>
+
+              <HierarchicalCategoryFilters
+                categories={filterSeed.categories}
+                taxonomy={filterSeed.taxonomy}
+                defaultParent={dashboardFilters.categoryParent || '__all__'}
+                defaultSubcategory={dashboardFilters.categorySlug || '__all__'}
+                defaultTaxonomy={selectedCategory}
+                submitOnCategoryChange
+              />
+
+              <label className="grid gap-2">
+                <span className="bs-kicker">State</span>
+                <select name="rawState" defaultValue={dashboardFilters.rawState} className="bs-field">
+                  {RAW_STATE_OPTIONS.map((option) => (
+                    <option key={option.value || 'all'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="bs-kicker">Duration</span>
+                <select name="durationBucket" defaultValue={dashboardFilters.durationBucket} className="bs-field">
+                  {DURATION_OPTIONS.map((option) => (
+                    <option key={option.value || 'all'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="bs-kicker">Minimum goal (USD)</span>
+                <input type="text" name="minGoal" defaultValue={dashboardFilters.minGoal} className="bs-field" />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="bs-kicker">Minimum pledged (USD)</span>
+                <input type="text" name="minPledged" defaultValue={dashboardFilters.minPledged} className="bs-field" />
+              </label>
+            </div>
+
             <button type="submit" className="bs-button-primary">Load report</button>
           </form>
         </section>
 
-        {hasSelectedCategory ? <>
-        <section className="order-4 bs-panel">
-          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="bs-kicker">Selected report</p>
-              <h2 className="bs-title mt-2 text-4xl font-semibold">{selectedMetric.taxonomyLabel}</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                {selectedYear === null
-                  ? `${metricWindow === 'all_time' ? 'All available campaign history' : 'Campaigns launched in the trailing 24 months'} through August 12, 2026.`
-                  : `Campaigns launched during ${selectedYear}.`}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`bs-data-chip ${trendClass(selectedMetric.trendLabel)}`}>
-                {trendLabel(selectedMetric.trendLabel)} activity
-              </span>
-              <Link href={campaignSliceHref} className="bs-button-primary">
-                View {formatInteger(displayedMetric.campaignCount)} campaign links
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              label="Campaigns"
-              value={formatInteger(displayedMetric.campaignCount)}
-              note={`${formatInteger(displayedMetric.successCount)} successful and ${formatInteger(displayedMetric.failureCount)} unsuccessful completed campaigns.`}
-            />
-            <MetricCard
-              label="Success rate"
-              value={formatPercent(displayedMetric.successRate)}
-              note="Calculated from completed outcomes only."
-            />
-            <MetricCard
-              label="Median goal"
-              value={formatMoney(displayedMetric.medianGoalUsd)}
-              note="Normalized USD using audited Kickstarter source rates."
-            />
-            <MetricCard
-              label="Median pledged"
-              value={formatMoney(displayedMetric.medianPledgedUsd)}
-              note="The midpoint of normalized pledged totals."
-            />
-            <MetricCard
-              label="Median backers"
-              value={formatInteger(displayedMetric.medianBackers)}
-              note="The midpoint backer count for this category slice."
-            />
-            <MetricCard
-              label="Median average pledge"
-              value={formatMoney(displayedMetric.medianAveragePledgeUsd)}
-              note="Normalized pledged amount divided by backers."
-            />
-            <MetricCard
-              label="Median funding multiple"
-              value={formatMultiple(displayedMetric.medianFundingMultiple)}
-              note="Pledged amount relative to each native campaign goal."
-            />
-            <MetricCard
-              label="Money coverage"
-              value={formatPercent(moneyCoverage)}
-              note={`${formatInteger(displayedMetric.moneyComparableCount)} campaigns have comparable normalized goal and pledged values.`}
-            />
-          </div>
-        </section>
-
-        <section className="order-2 bs-panel">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="bs-kicker">Yearly activity</p>
-              <h2 className="bs-title mt-2 text-2xl font-semibold">Launch volume and completed success rate</h2>
-            </div>
-            <Link
-              href={`/reports?window=${metricWindow}&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}#category-roster`}
-              className={selectedYear === null ? 'bs-button-primary' : 'bs-button-secondary'}
-            >
-              {metricWindow === 'all_time' ? 'All recorded years' : 'Entire trailing window'}
-            </Link>
-          </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {years.map((year) => (
-              <Link
-                key={year.launchYear}
-                href={`/reports?window=${metricWindow}&category=${encodeURIComponent(selectedMetric.dimensionKey)}&trend=${trendFilter}&sort=${categorySort}&order=${sortOrder}&year=${year.launchYear}#category-roster`}
-                className={`bs-panel-subtle block transition hover:-translate-y-0.5 hover:border-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${selectedYear === year.launchYear ? 'ring-2 ring-sky-400' : ''}`}
-                aria-pressed={selectedYear === year.launchYear}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <p className="bs-kicker">{year.launchYear}</p>
-                  <p className="font-mono text-sm font-semibold text-slate-900">
-                    {formatInteger(year.campaignCount)} campaigns
+        {selectedMetric && displayedMetric ? (
+          <>
+            <section id="selected-report" className="order-4 bs-panel">
+              <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="bs-kicker">Selected report</p>
+                  <h2 className="bs-title mt-2 text-4xl font-semibold">{selectedMetric.taxonomyLabel}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    {selectedYear === null
+                      ? `${metricWindow === 'all_time' ? 'All available campaign history' : 'Campaigns launched in the trailing 24 months'} through August 12, 2026.`
+                      : `Campaigns launched during ${selectedYear}.`}
                   </p>
                 </div>
-                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-blue-700 to-sky-400"
-                    style={{ width: `${(year.campaignCount / maxYearCount) * 100}%` }}
-                  />
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-4 text-sm">
-                  <span className="text-slate-500">Success rate</span>
-                  <span className="font-mono font-semibold text-slate-900">
-                    {formatPercent(year.successRate)}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`bs-data-chip ${trendClass(selectedMetric.trendLabel)}`}>
+                    {trendLabel(selectedMetric.trendLabel)} activity
+                  </span>
+                  <span className="bs-button-secondary cursor-default">
+                    {formatInteger(displayedMetric.campaignCount)} campaigns
                   </span>
                 </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+              </div>
+
+              <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  label="Campaigns"
+                  value={formatInteger(displayedMetric.campaignCount)}
+                  note={`${formatInteger(displayedMetric.successCount)} successful and ${formatInteger(displayedMetric.failureCount)} unsuccessful completed campaigns.`}
+                />
+                <MetricCard
+                  label="Success rate"
+                  value={formatPercent(displayedMetric.successRate)}
+                  note="Calculated from completed outcomes only."
+                />
+                <MetricCard
+                  label="Median goal"
+                  value={formatMoney(displayedMetric.medianGoalUsd)}
+                  note="Normalized USD using audited Kickstarter source rates."
+                />
+                <MetricCard
+                  label="Median pledged"
+                  value={formatMoney(displayedMetric.medianPledgedUsd)}
+                  note="The midpoint of normalized pledged totals."
+                />
+                <MetricCard
+                  label="Median backers"
+                  value={formatInteger(displayedMetric.medianBackers)}
+                  note="The midpoint backer count for this category slice."
+                />
+                <MetricCard
+                  label="Median average pledge"
+                  value={formatMoney(displayedMetric.medianAveragePledgeUsd)}
+                  note="Normalized pledged amount divided by backers."
+                />
+                <MetricCard
+                  label="Median funding multiple"
+                  value={formatMultiple(displayedMetric.medianFundingMultiple)}
+                  note="Pledged amount relative to each native campaign goal."
+                />
+                <MetricCard
+                  label="Money coverage"
+                  value={formatPercent(moneyCoverage)}
+                  note={`${formatInteger(displayedMetric.moneyComparableCount)} campaigns have comparable normalized goal and pledged values.`}
+                />
+              </div>
+            </section>
+
+            <section className="order-2 bs-panel">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="bs-kicker">Yearly activity</p>
+                  <h2 className="bs-title mt-2 text-2xl font-semibold">Launch volume and completed success rate</h2>
+                </div>
+                <Link
+                  href={buildHref({
+                    taxonomyLabel: selectedMetric.dimensionKey,
+                    trend: trendFilter,
+                    sort: categorySort,
+                    order: sortOrder,
+                  })}
+                  className={selectedYear === null ? 'bs-button-primary' : 'bs-button-secondary'}
+                >
+                  {metricWindow === 'all_time' ? 'All recorded years' : 'Entire trailing window'}
+                </Link>
+              </div>
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {years.map((year) => (
+                  <Link
+                    key={year.launchYear}
+                    href={`${buildHref({
+                      taxonomyLabel: selectedMetric.dimensionKey,
+                      trend: trendFilter,
+                      sort: categorySort,
+                      order: sortOrder,
+                      year: String(year.launchYear),
+                    })}#category-roster`}
+                    className={`bs-panel-subtle block transition hover:-translate-y-0.5 hover:border-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${selectedYear === year.launchYear ? 'ring-2 ring-sky-400' : ''}`}
+                    aria-pressed={selectedYear === year.launchYear}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="bs-kicker">{year.launchYear}</p>
+                      <p className="font-mono text-sm font-semibold text-slate-900">
+                        {formatInteger(year.campaignCount)} campaigns
+                      </p>
+                    </div>
+                    <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#7489a1e6]">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-blue-800 to-sky-600"
+                        style={{ width: `${(year.campaignCount / maxYearCount) * 100}%` }}
+                      />
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-4 text-sm">
+                      <span className="text-slate-500">Success rate</span>
+                      <span className="font-mono font-semibold text-slate-900">
+                        {formatPercent(year.successRate)}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          </>
+        ) : null}
 
         <details id="category-roster" className="order-3 bs-panel scroll-mt-28">
           <summary className="cursor-pointer list-none">
@@ -546,25 +628,33 @@ export default async function ReportsPage({
               </div>
               <span className="bs-accordion-hint">Click to expand <span aria-hidden="true" className="bs-accordion-chevron" /></span>
             </div>
-            <p className="mt-3 text-sm text-slate-600">Expand to filter and compare all category groups.</p>
-          </summary>
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-              {selectedYear === null
-                ? 'Open a category report for its complete metric set, then drill into the underlying campaigns when a signal deserves investigation.'
-                : `Showing ${categoryEntries.length} category groups containing ${formatInteger(displayedMetric.campaignCount)} campaigns launched in ${selectedYear}. Category reports and supporting campaign links retain this year.`}
+            <p className="mt-3 text-sm text-slate-600">
+              Expand to inspect the category cards generated from the current filtered campaign population.
             </p>
-            </div>
-          </div>
+          </summary>
+
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+            {selectedYear === null
+              ? 'Open a category report for its complete metric set, then drill into the underlying campaigns when a signal deserves investigation.'
+              : `Showing ${filteredCategories.length} category groups containing campaigns launched in ${selectedYear}.`}
+          </p>
+
           <form
             method="get"
             action="/reports#category-roster"
             className="bs-toolbar mt-6 grid gap-4 md:grid-cols-3 xl:grid-cols-[1fr,1fr,1fr,auto] xl:items-end"
           >
             <input type="hidden" name="window" value={metricWindow} />
-            <input type="hidden" name="category" value={selectedMetric.dimensionKey} />
+            <input type="hidden" name="search" value={dashboardFilters.search ?? ''} />
+            <input type="hidden" name="categoryParent" value={dashboardFilters.categoryParent ?? ''} />
+            <input type="hidden" name="categorySlug" value={dashboardFilters.categorySlug ?? ''} />
+            <input type="hidden" name="rawState" value={dashboardFilters.rawState ?? ''} />
+            <input type="hidden" name="durationBucket" value={dashboardFilters.durationBucket ?? ''} />
+            <input type="hidden" name="minGoal" value={dashboardFilters.minGoal ?? ''} />
+            <input type="hidden" name="minPledged" value={dashboardFilters.minPledged ?? ''} />
+            <input type="hidden" name="taxonomyLabel" value={selectedCategory ?? ''} />
             {selectedYear !== null ? <input type="hidden" name="year" value={selectedYear} /> : null}
+
             <label className="grid gap-2">
               <span className="bs-kicker">State</span>
               <select name="trend" defaultValue={trendFilter} className="bs-field">
@@ -581,6 +671,7 @@ export default async function ReportsPage({
                 })}
               </select>
             </label>
+
             <label className="grid gap-2">
               <span className="bs-kicker">Sort by</span>
               <select name="sort" defaultValue={categorySort} className="bs-field">
@@ -589,6 +680,7 @@ export default async function ReportsPage({
                 ))}
               </select>
             </label>
+
             <label className="grid gap-2">
               <span className="bs-kicker">Order</span>
               <select name="order" defaultValue={sortOrder} className="bs-field">
@@ -596,106 +688,118 @@ export default async function ReportsPage({
                 <option value="asc">Lowest first</option>
               </select>
             </label>
+
             <button type="submit" className="bs-button-primary">Apply</button>
           </form>
+
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredCategories.map(({ metric, displayMetric }) => (
               <CategoryCard
                 key={metric.dimensionKey}
                 metric={metric}
                 displayMetric={displayMetric}
-                selected={metric.dimensionKey === selectedMetric.dimensionKey}
-                metricWindow={metricWindow}
-                selectedYear={selectedYear}
-                trendFilter={trendFilter}
-                sortBy={categorySort}
-                sortOrder={sortOrder}
+                selected={metric.dimensionKey === selectedCategory}
+                href={`${buildHref({
+                  taxonomyLabel: metric.dimensionKey,
+                  trend: trendFilter,
+                  sort: categorySort,
+                  order: sortOrder,
+                  year: selectedYear === null ? undefined : String(selectedYear),
+                })}#selected-report`}
               />
             ))}
           </div>
+
           {filteredCategories.length === 0 ? (
             <div className="bs-panel-subtle mt-6 text-sm text-slate-600">
               No categories match this trend status in the selected reporting window.
             </div>
           ) : null}
         </details>
-        <section className="order-5 bs-panel">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="bs-kicker">Supporting campaigns</p>
-              <h2 className="bs-title mt-2 text-2xl font-semibold">Campaign links for this report</h2>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-                These campaigns match the selected report slice. Open a detail page
-                or the original Kickstarter source without leaving Reporting.
-              </p>
+
+        {selectedMetric && supportingCampaigns ? (
+          <section className="order-5 bs-panel">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="bs-kicker">Supporting campaigns</p>
+                <h2 className="bs-title mt-2 text-2xl font-semibold">Campaign links for this report</h2>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+                  These campaigns match the selected report slice. Open a detail page
+                  or the original Kickstarter source without leaving Reporting.
+                </p>
+              </div>
+              <span className="bs-data-chip bg-slate-900 text-white">
+                {formatInteger(supportingCampaigns.summary.comparableCampaigns)} campaigns
+              </span>
             </div>
-            <span className="bs-data-chip bg-slate-900 text-white">
-              {formatInteger(supportingCampaigns.summary.comparableCampaigns)} campaigns
-            </span>
-          </div>
-          {supportingCampaigns.campaigns.length ? (
+
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {supportingCampaigns.campaigns.map((campaign) => (
-                <article key={campaign.campaignId} className="bs-panel-subtle min-w-0">
-                  <p className="bs-kicker">{campaign.normalizedStatus}</p>
-                  <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                    {campaign.projectName}
-                  </h3>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">
-                    {campaign.primaryClassificationLabel ?? 'Unclassified'} | {campaign.categoryName ?? 'Unknown category'}
-                  </p>
-                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
-                    {campaign.blurb ?? 'No campaign summary is available in the current snapshot.'}
-                  </p>
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
-                      <span className="block text-slate-500">Goal</span>
-                      <span className="mt-1 block font-semibold text-slate-900">{campaign.goalUsd === null ? 'n/a' : formatMoney(Number(campaign.goalUsd))}</span>
+              {supportingCampaigns.campaigns.length ? (
+                supportingCampaigns.campaigns.map((campaign) => (
+                  <article key={campaign.campaignId} className="bs-panel-subtle min-w-0">
+                    <p className="bs-kicker">{formatNormalizedStatusLabel(campaign.normalizedStatus)}</p>
+                    <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                      {campaign.projectName}
+                    </h3>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      {campaign.primaryClassificationLabel ?? 'Unclassified'} | {campaign.categoryName ?? 'Unknown category'}
+                    </p>
+                    <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
+                      {campaign.blurb ?? 'No campaign summary is available in the current snapshot.'}
+                    </p>
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                        <span className="block text-slate-500">Goal</span>
+                        <span className="mt-1 block font-semibold text-slate-900">
+                          {campaign.goalUsd === null ? 'n/a' : formatMoney(Number(campaign.goalUsd))}
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                        <span className="block text-slate-500">Pledged</span>
+                        <span className="mt-1 block font-semibold text-slate-900">
+                          {campaign.pledgedUsd === null ? 'n/a' : formatMoney(Number(campaign.pledgedUsd))}
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                        <span className="block text-slate-500">Backers</span>
+                        <span className="mt-1 block font-semibold text-slate-900">{formatInteger(campaign.backersCount)}</span>
+                      </div>
+                      <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                        <span className="block text-slate-500">Duration</span>
+                        <span className="mt-1 block font-semibold text-slate-900">
+                          {campaign.campaignDurationDays === null ? 'n/a' : `${formatInteger(campaign.campaignDurationDays)}d`}
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
+                        <span className="block text-slate-500">Multiple</span>
+                        <span className="mt-1 block font-semibold text-slate-900">{formatMultiple(campaign.fundingMultiple)}</span>
+                      </div>
                     </div>
-                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
-                      <span className="block text-slate-500">Pledged</span>
-                      <span className="mt-1 block font-semibold text-slate-900">{campaign.pledgedUsd === null ? 'n/a' : formatMoney(Number(campaign.pledgedUsd))}</span>
-                    </div>
-                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
-                      <span className="block text-slate-500">Backers</span>
-                      <span className="mt-1 block font-semibold text-slate-900">{formatInteger(campaign.backersCount)}</span>
-                    </div>
-                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
-                      <span className="block text-slate-500">Duration</span>
-                      <span className="mt-1 block font-semibold text-slate-900">
-                        {campaign.campaignDurationDays === null ? 'n/a' : `${formatInteger(campaign.campaignDurationDays)}d`}
-                      </span>
-                    </div>
-                    <div className="rounded-lg border border-bs-border bg-[color:var(--bs-field-bg)] p-2">
-                      <span className="block text-slate-500">Multiple</span>
-                      <span className="mt-1 block font-semibold text-slate-900">{formatMultiple(campaign.fundingMultiple)}</span>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <a
-                      href={`/campaigns/${campaign.campaignId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="bs-button-secondary"
-                    >
-                      Open detail
-                    </a>
-                    {campaign.projectUrl ? (
-                      <a href={campaign.projectUrl} target="_blank" rel="noreferrer" className="bs-button-primary">
-                        Kickstarter source
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <a
+                        href={`/campaigns/${campaign.campaignId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bs-button-secondary"
+                      >
+                        Open detail
                       </a>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
+                      {campaign.projectUrl ? (
+                        <a href={campaign.projectUrl} target="_blank" rel="noreferrer" className="bs-button-primary">
+                          Kickstarter source
+                        </a>
+                      ) : null}
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="bs-panel-subtle md:col-span-2 xl:col-span-3 text-sm leading-6 text-slate-600">
+                  No supporting campaign links are available for this report slice.
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="bs-panel-subtle mt-6 text-sm leading-6 text-slate-600">
-              No supporting campaign links are available for this report slice.
-            </div>
-          )}
-        </section>
-        </> : null}
+          </section>
+        ) : null}
       </div>
     </main>
   )
