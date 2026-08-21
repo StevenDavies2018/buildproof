@@ -13,6 +13,17 @@ export type AuthUser = {
   role: 'user' | 'admin'
 }
 
+export type AccountConsent = {
+  acceptedTerms: boolean
+  acknowledgedDisclaimer: boolean
+}
+
+type GoogleRegistrationConsent = {
+  termsAcceptedAt: Date
+  privacyAcceptedAt: Date
+  legalDisclaimerAcknowledgedAt: Date
+}
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase()
 }
@@ -70,17 +81,38 @@ function sessionExpiry() {
   return new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
 }
 
-export async function createAccount(email: string, displayName: string, password: string) {
+export async function createAccount(
+  email: string,
+  displayName: string,
+  password: string,
+  consent: AccountConsent,
+) {
   if (!hasDatabaseConfig()) throw new Error('Database is not configured')
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail || !normalizedEmail.includes('@')) throw new Error('Enter a valid email address')
   if (displayName.trim().length < 2) throw new Error('Enter a display name')
   if (password.length < 8) throw new Error('Password must be at least 8 characters')
+  if (!consent.acceptedTerms) throw new Error('Terms consent is required')
+  if (!consent.acknowledgedDisclaimer) throw new Error('Legal disclaimer acknowledgement is required')
 
   const sql = getSql()
   const [user] = await sql<{ id: number; email: string; displayName: string; role: 'user' | 'admin' }[]>`
-    INSERT INTO app_users (email, display_name, password_hash)
-    VALUES (${normalizedEmail}, ${displayName.trim()}, ${hashPassword(password)})
+    INSERT INTO app_users (
+      email,
+      display_name,
+      password_hash,
+      terms_accepted_at,
+      privacy_accepted_at,
+      legal_disclaimer_acknowledged_at
+    )
+    VALUES (
+      ${normalizedEmail},
+      ${displayName.trim()},
+      ${hashPassword(password)},
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    )
     RETURNING id, email, display_name AS "displayName", role
   `
   await sendVerificationEmail(user.id, user.email, user.displayName)
@@ -104,7 +136,12 @@ export async function signIn(email: string, password: string) {
   return { id: user.id, email: user.email, displayName: user.displayName, role: user.role }
 }
 
-export async function signInWithGoogle(subject: string, email: string, displayName: string) {
+export async function signInWithGoogle(
+  subject: string,
+  email: string,
+  displayName: string,
+  registrationConsent?: GoogleRegistrationConsent,
+) {
   if (!hasDatabaseConfig()) throw new Error('Database is not configured')
   const sql = getSql()
   const normalizedEmail = normalizeEmail(email)
@@ -121,8 +158,26 @@ export async function signInWithGoogle(subject: string, email: string, displayNa
         RETURNING id, email, display_name AS "displayName", role
       `
     : await sql<{ id: number; email: string; displayName: string; role: 'user' | 'admin' }[]>`
-        INSERT INTO app_users (email, display_name, password_hash, google_subject, email_verified_at)
-        VALUES (${normalizedEmail}, ${displayName.trim() || email}, ${hashPassword(randomBytes(32).toString('hex'))}, ${subject}, CURRENT_TIMESTAMP)
+        INSERT INTO app_users (
+          email,
+          display_name,
+          password_hash,
+          google_subject,
+          email_verified_at,
+          terms_accepted_at,
+          privacy_accepted_at,
+          legal_disclaimer_acknowledged_at
+        )
+        VALUES (
+          ${normalizedEmail},
+          ${displayName.trim() || email},
+          ${hashPassword(randomBytes(32).toString('hex'))},
+          ${subject},
+          CURRENT_TIMESTAMP,
+          ${registrationConsent?.termsAcceptedAt ?? null},
+          ${registrationConsent?.privacyAcceptedAt ?? null},
+          ${registrationConsent?.legalDisclaimerAcknowledgedAt ?? null}
+        )
         RETURNING id, email, display_name AS "displayName", role
       `
   await establishSession(user.id)

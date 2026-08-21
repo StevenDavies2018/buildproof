@@ -90,5 +90,8 @@ Recent fixes and validations included:
 
 - The app is being developed locally first.
 - Auth is now active for local accounts plus Google sign-in.
+- Email/password account creation now persists consent timestamps for
+  Terms, Privacy, and Legal Disclaimer acceptance in `app_users`;
+  `created_at` remains the account signup date of record.
 - AI remains intentionally optional and is not part of the base
   deterministic analysis flow.

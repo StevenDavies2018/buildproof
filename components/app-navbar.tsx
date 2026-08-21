@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { AuthUser } from '@/lib/auth'
 import {
@@ -35,12 +35,12 @@ function getInitialTheme(): ThemeMode {
 
 export default function AppNavbar({ user }: { user: AuthUser | null }) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [theme, setTheme] = useState<ThemeMode>('dark')
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>('not_started')
   const [storedAdminHref, setStoredAdminHref] = useState('/admin')
   const [storedDashboardHref, setStoredDashboardHref] = useState('/dashboard')
   const [storedReportsHref, setStoredReportsHref] = useState('/reports')
+  const [currentQuery, setCurrentQuery] = useState('')
 
   useEffect(() => {
     const nextTheme = getInitialTheme()
@@ -62,6 +62,11 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
       setStoredReportsHref('/reports')
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setCurrentQuery(window.location.search.replace(/^\?/, ''))
+  }, [pathname])
 
   useEffect(() => {
     if (!user) {
@@ -105,7 +110,6 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
     window.dispatchEvent(new Event(ONBOARDING_OPEN_EVENT))
   }
 
-  const currentQuery = searchParams?.toString() ?? ''
   const isResearchSurface =
     pathname?.startsWith('/dashboard') || pathname?.startsWith('/reports')
   const dashboardHref =

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import type { AuthUser } from '@/lib/auth'
 import {
   getOnboardingStorageKey,
@@ -35,11 +35,11 @@ function writeStatus(userId: number, status: OnboardingStatus) {
 export default function OnboardingProvider({ user }: { user: AuthUser | null }) {
   const pathname = usePathname()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [status, setStatus] = useState<OnboardingStatus>('not_started')
   const [open, setOpen] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
   const [completionState, setCompletionState] = useState<'idle' | 'finishing'>('idle')
+  const [searchString, setSearchString] = useState('')
   const lastScrolledTargetRef = useRef<string | null>(null)
   const [dockRect, setDockRect] = useState<{
     top: number
@@ -54,19 +54,29 @@ export default function OnboardingProvider({ user }: { user: AuthUser | null }) 
     height: number
   } | null>(null)
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setSearchString(window.location.search.replace(/^\?/, ''))
+  }, [pathname])
+
+  const currentSearchParams = useMemo(
+    () => new URLSearchParams(searchString),
+    [searchString],
+  )
+
   const eligible = Boolean(user) && pathname?.startsWith('/dashboard')
   const activeStep = ONBOARDING_STEPS[stepIndex]
   const isLastStep = stepIndex === ONBOARDING_STEPS.length - 1
   const hasMeaningfulFilters = Boolean(
-    searchParams?.get('search') ||
-    searchParams?.get('categoryParent') ||
-    searchParams?.get('categorySlug') ||
-    searchParams?.get('taxonomyLabel') ||
-    searchParams?.get('durationBucket') ||
-    searchParams?.get('rawState') ||
-    searchParams?.get('minGoal') ||
-    searchParams?.get('minPledged') ||
-    searchParams?.get('years'),
+    currentSearchParams.get('search') ||
+    currentSearchParams.get('categoryParent') ||
+    currentSearchParams.get('categorySlug') ||
+    currentSearchParams.get('taxonomyLabel') ||
+    currentSearchParams.get('durationBucket') ||
+    currentSearchParams.get('rawState') ||
+    currentSearchParams.get('minGoal') ||
+    currentSearchParams.get('minPledged') ||
+    currentSearchParams.get('years'),
   )
 
   useEffect(() => {
@@ -114,7 +124,7 @@ export default function OnboardingProvider({ user }: { user: AuthUser | null }) 
     function handleOpen() {
       if (!eligible || !user) return
       if (!hasMeaningfulFilters) {
-        const params = new URLSearchParams(searchParams?.toString() ?? '')
+        const params = new URLSearchParams(searchString)
         for (const [key, value] of Object.entries(ONBOARDING_SAMPLE_QUERY)) {
           params.set(key, value)
         }
@@ -127,16 +137,16 @@ export default function OnboardingProvider({ user }: { user: AuthUser | null }) 
 
     window.addEventListener(ONBOARDING_OPEN_EVENT, handleOpen)
     return () => window.removeEventListener(ONBOARDING_OPEN_EVENT, handleOpen)
-  }, [eligible, hasMeaningfulFilters, router, searchParams, user])
+  }, [eligible, hasMeaningfulFilters, router, searchString, user])
 
   useEffect(() => {
     if (!open || !eligible || hasMeaningfulFilters) return
-    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    const params = new URLSearchParams(searchString)
     for (const [key, value] of Object.entries(ONBOARDING_SAMPLE_QUERY)) {
       params.set(key, value)
     }
     router.replace(`/dashboard?${params.toString()}`, { scroll: false })
-  }, [eligible, hasMeaningfulFilters, open, router, searchParams])
+  }, [eligible, hasMeaningfulFilters, open, router, searchString])
 
   const progressLabel = useMemo(
     () => `Step ${stepIndex + 1} of ${ONBOARDING_STEPS.length}`,

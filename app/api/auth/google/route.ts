@@ -7,9 +7,19 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID
   if (!clientId) return NextResponse.redirect(new URL('/account?error=Google%20OAuth%20is%20not%20configured', request.url))
+  const url = new URL(request.url)
+  const intent = url.searchParams.get('intent') === 'register' ? 'register' : 'signin'
 
+  const cookieStore = await cookies()
   const state = randomBytes(24).toString('base64url')
-  ;(await cookies()).set('backer-sonar-google-state', state, {
+  cookieStore.set('backer-sonar-google-state', state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 600,
+    path: '/',
+  })
+  cookieStore.set('backer-sonar-google-intent', intent, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

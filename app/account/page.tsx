@@ -50,7 +50,7 @@ export default async function AccountPage({
                 <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required className="bs-field mt-2 w-full" /></label>
                 <button type="submit" className="bs-button-primary mt-5">Sign in</button>
                 <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
-                <a href="/api/auth/google" className="bs-button-secondary inline-flex">Continue with Google</a>
+                <a href="/api/auth/google?intent=signin" className="bs-button-secondary inline-flex">Continue with Google</a>
               </form>
               <form action={registerAccount} className="rounded-2xl border border-bs-border bg-[color:var(--bs-field-bg)] p-5">
                 <p className="bs-kicker">New workspace</p>
@@ -58,9 +58,21 @@ export default async function AccountPage({
                 <label className="mt-5 block text-sm font-medium text-slate-700">Display name<input name="displayName" required minLength={2} className="bs-field mt-2 w-full" /></label>
                 <label className="mt-4 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-field mt-2 w-full" /></label>
                 <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required minLength={8} className="bs-field mt-2 w-full" /></label>
+                <label className="mt-5 flex items-start gap-3 text-sm leading-6 text-slate-700">
+                  <input name="acceptTerms" type="checkbox" required className="mt-1 h-4 w-4 shrink-0 rounded border-bs-border" />
+                  <span>
+                    I agree to the <Link href="/terms" className="font-medium text-slate-900 underline underline-offset-4">Terms of use</Link> and <Link href="/privacy" className="font-medium text-slate-900 underline underline-offset-4">Privacy policy</Link>.
+                  </span>
+                </label>
+                <label className="mt-4 flex items-start gap-3 text-sm leading-6 text-slate-700">
+                  <input name="acknowledgeDisclaimer" type="checkbox" required className="mt-1 h-4 w-4 shrink-0 rounded border-bs-border" />
+                  <span>
+                    I understand the <Link href="/legal-disclaimer" className="font-medium text-slate-900 underline underline-offset-4">legal disclaimer</Link> and that Backer Sonar provides research support, not financial, legal, or performance guarantees.
+                  </span>
+                </label>
                 <button type="submit" className="bs-button-primary mt-5">Create account</button>
                 <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
-                <a href="/api/auth/google" className="bs-button-secondary inline-flex">Register with Google</a>
+                <Link href="/account/google-consent" className="bs-button-secondary inline-flex">Register with Google</Link>
               </form>
             </div>
           )}
