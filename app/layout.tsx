@@ -1,4 +1,5 @@
 import './globals.css'
+import { Suspense } from 'react'
 import { Fira_Code, Fira_Sans } from 'next/font/google'
 import AppNavbar from '@/components/app-navbar'
 import OnboardingProvider from '@/components/onboarding-provider'
@@ -52,8 +53,12 @@ export default async function RootLayout({
             `,
           }}
         />
-        <AppNavbar user={user} />
-        <OnboardingProvider user={user} />
+        <Suspense fallback={null}>
+          <AppNavbar user={user} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <OnboardingProvider user={user} />
+        </Suspense>
         {children}
         <SiteFooter />
       </body>
