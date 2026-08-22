@@ -1,7 +1,9 @@
+import { AnalyticsViewTracker } from '@/components/analytics-view-tracker'
 import Link from 'next/link'
 import { PersistedViewLink } from '@/components/persisted-view-link'
 import { type CompareCampaign, getCompareCampaigns } from '@/lib/research'
 import { SaveComparisonButton } from '@/components/saved-research'
+import { requireActivePlan } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -183,6 +185,7 @@ export default async function ComparePage({
 }: {
   searchParams?: Promise<{ ids?: string }>
 }) {
+  await requireActivePlan('/account?error=Your%20free%20trial%20has%20ended.%20Upgrade%20to%20keep%20using%20Compare%20View.')
   const resolvedSearchParams = (await searchParams) ?? {}
   const ids = (resolvedSearchParams.ids ?? '')
     .split(',')
@@ -207,6 +210,7 @@ export default async function ComparePage({
   return (
     <main className="bs-shell">
       <div className="bs-container">
+        <AnalyticsViewTracker mode="compare" />
         <section className="bs-panel">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-4xl">

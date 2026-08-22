@@ -1,9 +1,11 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { AuthUser } from '@/lib/auth'
+import { logoutAccount } from '@/app/account/actions'
 import {
   ADMIN_VIEW_STATE_KEY,
   DASHBOARD_VIEW_STATE_KEY,
@@ -15,38 +17,13 @@ import {
   ONBOARDING_STATUS_CHANGED_EVENT,
   type OnboardingStatus,
 } from '@/lib/onboarding'
-
-type ThemeMode = 'light' | 'dark'
-
-function getInitialTheme(): ThemeMode {
-  if (typeof window === 'undefined') {
-    return 'dark'
-  }
-
-  const stored = window.localStorage.getItem('backer-sonar-theme')
-  if (stored === 'light' || stored === 'dark') {
-    return stored
-  }
-
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light'
-}
-
-export default function AppNavbar({ user }: { user: AuthUser | null }) {
+export default function AppNavbar({ user, showAiCopilot = false }: { user: AuthUser | null; showAiCopilot?: boolean }) {
   const pathname = usePathname()
-  const [theme, setTheme] = useState<ThemeMode>('dark')
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>('not_started')
   const [storedAdminHref, setStoredAdminHref] = useState('/admin')
   const [storedDashboardHref, setStoredDashboardHref] = useState('/dashboard')
   const [storedReportsHref, setStoredReportsHref] = useState('/reports')
   const [currentQuery, setCurrentQuery] = useState('')
-
-  useEffect(() => {
-    const nextTheme = getInitialTheme()
-    setTheme(nextTheme)
-    document.documentElement.dataset.theme = nextTheme
-  }, [])
 
   useEffect(() => {
     try {
@@ -99,14 +76,13 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
 
   if (pathname === '/' || pathname?.startsWith('/account')) return null
 
-  function toggleTheme() {
-    const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark'
-    setTheme(nextTheme)
-    document.documentElement.dataset.theme = nextTheme
-    window.localStorage.setItem('backer-sonar-theme', nextTheme)
-  }
-
   function openHelpWalkthrough() {
+    void fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventName: 'help_opened', surface: 'navbar' }),
+      keepalive: true,
+    }).catch(() => undefined)
     window.dispatchEvent(new Event(ONBOARDING_OPEN_EVENT))
   }
 
@@ -120,13 +96,25 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
     ? `/admin?${currentQuery}`
     : storedAdminHref
 
+  const accountStateLabel =
+    user?.role === 'admin'
+      ? 'Admin'
+      : user?.accountType === 'paid'
+        ? 'Paid'
+        : user
+          ? 'Trial'
+          : null
+
   return (
     <header className="bs-nav-shell">
-      <div className="bs-container">
+      <div className="bs-nav-container">
         <div className="bs-nav">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
             <Link href="/" className="bs-nav-brand">
-              <span className="bs-nav-brand-mark">BS</span>
+              <span className="bs-nav-brand-mark">
+                <Image src="/brand-icon.png" alt="" width={44} height={44} className="rounded-2xl" priority />
+              </span>
               <span className="bs-nav-brand-copy">
                 <span className="bs-nav-brand-kicker">Backer Sonar</span>
                 <span className="bs-nav-brand-title">Kickstarter Research</span>
@@ -142,10 +130,18 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
               </Link>
               <Link
                 href={reportsHref}
-                className={`bs-nav-link bs-nav-report-button ${pathname?.startsWith('/reports') ? 'bs-nav-report-button-active' : ''}`}
+                className={`bs-nav-link ${pathname?.startsWith('/reports') ? 'bs-nav-link-active' : ''}`}
               >
                 Reporting View
               </Link>
+              {showAiCopilot ? (
+                <Link
+                  href="/ai-copilot"
+                  className={`bs-nav-link ${pathname?.startsWith('/ai-copilot') ? 'bs-nav-link-active' : ''}`}
+                >
+                  AI Co-Pilot
+                </Link>
+              ) : null}
               {user?.role === 'admin' ? <>
                 <Link
                   href="/admin/quality/research"
@@ -153,12 +149,34 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
                 >
                   Research QA
                 </Link>
-                <Link
-                  href={adminHref}
-                  className={`bs-nav-link ${pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/quality/research') ? 'bs-nav-link-active' : ''}`}
-                >
-                  Admin View
-                </Link>
+                <details className="bs-nav-dropdown">
+                  <summary
+                    className={`bs-nav-link list-none ${pathname?.startsWith('/admin/users') || pathname?.startsWith('/admin/usage') || (pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/quality/research')) ? 'bs-nav-link-active' : ''}`}
+                  >
+                    Admin
+                    <span aria-hidden="true" className="bs-nav-dropdown-chevron" />
+                  </summary>
+                  <div className="bs-nav-dropdown-menu">
+                    <Link
+                      href="/admin/users"
+                      className={`bs-nav-dropdown-link ${pathname?.startsWith('/admin/users') ? 'bs-nav-dropdown-link-active' : ''}`}
+                    >
+                      Admin Users
+                    </Link>
+                    <Link
+                      href="/admin/usage"
+                      className={`bs-nav-dropdown-link ${pathname?.startsWith('/admin/usage') ? 'bs-nav-dropdown-link-active' : ''}`}
+                    >
+                      Admin Usage
+                    </Link>
+                    <Link
+                      href={adminHref}
+                      className={`bs-nav-dropdown-link ${pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/quality/research') && !pathname?.startsWith('/admin/users') && !pathname?.startsWith('/admin/usage') ? 'bs-nav-dropdown-link-active' : ''}`}
+                    >
+                      Admin View
+                    </Link>
+                  </div>
+                </details>
               </> : null}
               <Link
                 href="/account"
@@ -173,17 +191,25 @@ export default function AppNavbar({ user }: { user: AuthUser | null }) {
                     : 'Help'}
                 </button>
               ) : null}
+              {user ? (
+                <form action={logoutAccount}>
+                  <button type="submit" className="bs-nav-link">
+                    Log out
+                  </button>
+                </form>
+              ) : null}
             </nav>
+            </div>
+
+            {user ? (
+              <div className="bs-nav-account">
+                <span className="bs-nav-account-kicker">Signed in</span>
+                <span className="bs-nav-account-name">{user.displayName}</span>
+                <span className="bs-nav-account-plan">{accountStateLabel}</span>
+              </div>
+            ) : null}
           </div>
 
-          <button type="button" onClick={toggleTheme} className="bs-theme-toggle self-start md:self-auto">
-            <span className="bs-theme-toggle-label">
-              {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
-            </span>
-            <span className="bs-theme-toggle-icon">
-              {theme === 'dark' ? 'Sun' : 'Moon'}
-            </span>
-          </button>
         </div>
       </div>
     </header>

@@ -13,26 +13,37 @@ import {
   removeAccountResearchItem,
   saveAccountResearchItem,
   subscribeToSavedResearch,
+  type ResearchViewSource,
+  type SaveLimits,
   type SavedResearchItem,
 } from '@/lib/saved-research'
+import { postAnalyticsEvent } from '@/lib/client-analytics'
 
 const SNAPSHOT_VERSION = '2026-08-12'
 
 function useSavedItems() {
   const [items, setItems] = useState<SavedResearchItem[]>([])
   const [authenticated, setAuthenticated] = useState(false)
+  const [limits, setLimits] = useState<SaveLimits>({
+    research: null,
+    campaign: null,
+    comparison: null,
+  })
+  const [canUseAiCopilot, setCanUseAiCopilot] = useState(false)
 
   useEffect(() => {
     const refresh = () => setItems(readSavedResearch())
     refresh()
     loadAccountSavedResearch().then((accountItems) => {
       setAuthenticated(accountItems.authenticated)
+      setLimits(accountItems.limits)
+      setCanUseAiCopilot(accountItems.canUseAiCopilot)
       if (accountItems.authenticated) setItems(accountItems.items)
     }).catch(() => undefined)
     return subscribeToSavedResearch(refresh)
   }, [])
 
-  return { items, authenticated }
+  return { items, authenticated, limits, canUseAiCopilot }
 }
 
 function SaveToggle({
@@ -40,32 +51,57 @@ function SaveToggle({
   saveLabel,
   savedLabel,
   className = 'bs-button-secondary',
+  limitOverride = null,
 }: {
   item: SavedResearchItem
   saveLabel: string
   savedLabel: string
   className?: string
+  limitOverride?: SaveLimits | null
 }) {
-  const { items, authenticated } = useSavedItems()
+  const { items, authenticated, limits } = useSavedItems()
+  const [error, setError] = useState<string | null>(null)
   const isSaved = items.some((existing) => existing.id === item.id)
+  const effectiveLimits = limitOverride ?? limits
+  const groupCount = items.filter((existing) => existing.type === item.type).length
+  const limit = effectiveLimits[item.type]
+  const atLimit = !isSaved && limit !== null && groupCount >= limit
 
   return (
-    <button
-      type="button"
-      className={isSaved ? 'bs-button-primary' : className}
-      aria-pressed={isSaved}
-      onClick={() => {
-        if (isSaved) {
-          removeResearchItem(item.id)
-          if (authenticated) void removeAccountResearchItem(item.id)
-        } else {
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        className={isSaved ? 'bs-button-primary' : className}
+        aria-pressed={isSaved}
+        disabled={atLimit}
+        onClick={async () => {
+          setError(null)
+          if (isSaved) {
+            removeResearchItem(item.id)
+            if (authenticated) void removeAccountResearchItem(item.id)
+            return
+          }
+
+          if (atLimit) {
+            setError(`Trial limit reached: ${limit} saved ${item.type === 'research' ? 'research views' : item.type === 'campaign' ? 'campaigns' : 'comparisons'}.`)
+            return
+          }
+
           saveResearchItem(item)
-          if (authenticated) void saveAccountResearchItem(item)
-        }
-      }}
-    >
-      {isSaved ? savedLabel : saveLabel}
-    </button>
+          if (authenticated) {
+            try {
+              await saveAccountResearchItem(item)
+            } catch (saveError) {
+              removeResearchItem(item.id)
+              setError(saveError instanceof Error ? saveError.message : 'Unable to save this item.')
+            }
+          }
+        }}
+      >
+        {atLimit ? `Limit reached (${limit})` : isSaved ? savedLabel : saveLabel}
+      </button>
+      {error ? <p className="text-xs leading-5 text-amber-700">{error}</p> : null}
+    </div>
   )
 }
 
@@ -73,21 +109,25 @@ export function SaveResearchViewButton({
   filters,
   label,
   className,
+  entitlementLimits = null,
+  source = 'dashboard',
 }: {
   filters: Record<string, string>
   label: string
   className?: string
+  entitlementLimits?: SaveLimits | null
+  source?: ResearchViewSource
 }) {
   const item = {
-    id: researchViewIdentity(filters),
+    id: researchViewIdentity(filters, source),
     type: 'research' as const,
     label,
     savedAt: new Date().toISOString(),
     snapshotVersion: SNAPSHOT_VERSION,
     filters,
-    href: researchViewHref(filters),
+    href: researchViewHref(filters, source),
   }
-  return <SaveToggle item={item} saveLabel="Save this research" savedLabel="Research saved" className={className} />
+  return <SaveToggle item={item} saveLabel="Save this research" savedLabel="Research saved" className={className} limitOverride={entitlementLimits} />
 }
 
 export function SaveCampaignButton({
@@ -95,11 +135,13 @@ export function SaveCampaignButton({
   projectName,
   categoryLabel,
   projectUrl,
+  entitlementLimits = null,
 }: {
   campaignId: number
   projectName: string
   categoryLabel: string | null
   projectUrl: string | null
+  entitlementLimits?: SaveLimits | null
 }) {
   return (
     <SaveToggle
@@ -116,6 +158,7 @@ export function SaveCampaignButton({
       }}
       saveLabel="Save campaign"
       savedLabel="Campaign saved"
+      limitOverride={entitlementLimits}
     />
   )
 }
@@ -124,10 +167,12 @@ export function SaveComparisonButton({
   campaignIds,
   campaignNames,
   categoryLabel,
+  entitlementLimits = null,
 }: {
   campaignIds: number[]
   campaignNames: string[]
   categoryLabel: string | null
+  entitlementLimits?: SaveLimits | null
 }) {
   const sortedIds = [...campaignIds].sort((left, right) => left - right)
   return (
@@ -144,6 +189,7 @@ export function SaveComparisonButton({
       }}
       saveLabel="Save comparison"
       savedLabel="Comparison saved"
+      limitOverride={entitlementLimits}
     />
   )
 }
@@ -181,7 +227,16 @@ function SavedItemsContent({ items, authenticated, onClose }: { items: SavedRese
               <div className="mt-2 grid gap-2">
                 {groupItems.length ? groupItems.map((item) => (
                   <div key={item.id} className="rounded-xl border border-bs-border bg-[color:var(--bs-field-bg)] p-2.5">
-                    <Link href={item.href} onClick={onClose} className="block text-sm font-medium leading-5 text-slate-900 hover:underline">
+                    <Link
+                      href={item.href}
+                      onClick={() => {
+                        postAnalyticsEvent('saved_item_reopened', 'saved-research', {
+                          itemType: item.type,
+                        })
+                        onClose?.()
+                      }}
+                      className="block text-sm font-medium leading-5 text-slate-900 hover:underline"
+                    >
                       {item.label}
                     </Link>
                     <div className="mt-1.5 flex items-center justify-between gap-2">
@@ -206,7 +261,7 @@ function SavedItemsContent({ items, authenticated, onClose }: { items: SavedRese
 }
 
 export function SavedResearchPanel() {
-  const { items, authenticated } = useSavedItems()
+  const { items, authenticated, limits, canUseAiCopilot } = useSavedItems()
   const [open, setOpen] = useState(false)
 
   return (
@@ -216,6 +271,10 @@ export function SavedResearchPanel() {
         className="sticky top-28 hidden max-h-[calc(100vh-8rem)] overflow-y-auto rounded-[1.5rem] border border-bs-border bg-[color:var(--bs-panel)] p-4 shadow-[0_16px_40px_rgba(2,6,23,0.14)] xl:block"
       >
         <SavedItemsContent items={items} authenticated={authenticated} />
+        <div className="mt-4 rounded-xl border border-bs-border bg-[color:var(--bs-field-bg)] p-3 text-xs leading-6 text-slate-600">
+          <p>Trial caps: {limits.research ?? 'unlimited'} research views, {limits.campaign ?? 'unlimited'} campaigns, {limits.comparison ?? 'unlimited'} comparisons.</p>
+          <p className="mt-1">AI Co-pilot: {canUseAiCopilot ? 'included in this plan' : 'paid plans only'}</p>
+        </div>
       </aside>
       <button type="button" onClick={() => setOpen(true)} className="bs-button-primary fixed bottom-5 right-5 z-40 shadow-xl xl:hidden">
         Saved ({items.length})
@@ -224,6 +283,10 @@ export function SavedResearchPanel() {
         <div className="fixed inset-0 z-50 bg-slate-950/70 p-4 backdrop-blur-sm xl:hidden" onClick={() => setOpen(false)}>
           <aside className="ml-auto h-full w-full max-w-sm overflow-y-auto rounded-[1.5rem] border border-bs-border bg-[color:var(--bs-panel)] p-4" onClick={(event) => event.stopPropagation()}>
             <SavedItemsContent items={items} authenticated={authenticated} onClose={() => setOpen(false)} />
+            <div className="mt-4 rounded-xl border border-bs-border bg-[color:var(--bs-field-bg)] p-3 text-xs leading-6 text-slate-600">
+              <p>Trial caps: {limits.research ?? 'unlimited'} research views, {limits.campaign ?? 'unlimited'} campaigns, {limits.comparison ?? 'unlimited'} comparisons.</p>
+              <p className="mt-1">AI Co-pilot: {canUseAiCopilot ? 'included in this plan' : 'paid plans only'}</p>
+            </div>
           </aside>
         </div>
       ) : null}

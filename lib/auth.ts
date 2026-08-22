@@ -1,5 +1,6 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { cookies } from 'next/headers'
+import { recordAnalyticsEvent } from '@/lib/analytics'
 import { getSql, hasDatabaseConfig } from '@/lib/db'
 import { Resend } from 'resend'
 
@@ -11,6 +12,21 @@ export type AuthUser = {
   email: string
   displayName: string
   role: 'user' | 'admin'
+  accountType: 'free' | 'paid'
+  trialEndsAt: string | null
+  aiCopilotEnabled: boolean
+  aiCopilotEnabledAt: string | null
+}
+
+export type UserEntitlements = {
+  canUseResearchSurfaces: boolean
+  canUseAiCopilot: boolean
+  saveLimits: {
+    research: number | null
+    campaign: number | null
+    comparison: number | null
+  }
+  compareSelectionLimit: number
 }
 
 export type AccountConsent = {
@@ -116,14 +132,19 @@ export async function createAccount(
     RETURNING id, email, display_name AS "displayName", role
   `
   await sendVerificationEmail(user.id, user.email, user.displayName)
+  await recordAnalyticsEvent({
+    userId: user.id,
+    eventName: 'account_created',
+    surface: 'account',
+  })
   return { ...user, emailVerified: false }
 }
 
 export async function signIn(email: string, password: string) {
   if (!hasDatabaseConfig()) throw new Error('Database is not configured')
   const sql = getSql()
-  const [user] = await sql<{ id: number; email: string; displayName: string; passwordHash: string; role: 'user' | 'admin'; emailVerifiedAt: string | null }[]>`
-    SELECT id, email, display_name AS "displayName", password_hash AS "passwordHash", role, email_verified_at AS "emailVerifiedAt"
+  const [user] = await sql<{ id: number; email: string; displayName: string; passwordHash: string; role: 'user' | 'admin'; emailVerifiedAt: string | null; accountType: 'free' | 'paid'; trialEndsAt: string | null }[]>`
+    SELECT id, email, display_name AS "displayName", password_hash AS "passwordHash", role, email_verified_at AS "emailVerifiedAt", account_type AS "accountType", trial_ends_at AS "trialEndsAt"
     FROM app_users
     WHERE email = ${normalizeEmail(email)}
     LIMIT 1
@@ -133,7 +154,19 @@ export async function signIn(email: string, password: string) {
   }
   if (!user.emailVerifiedAt) throw new Error('Verify your email before signing in')
   await establishSession(user.id)
-  return { id: user.id, email: user.email, displayName: user.displayName, role: user.role }
+  await recordAnalyticsEvent({
+    userId: user.id,
+    eventName: 'sign_in',
+    surface: 'account',
+  })
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    accountType: user.accountType,
+    trialEndsAt: user.trialEndsAt,
+  }
 }
 
 export async function signInWithGoogle(
@@ -151,13 +184,13 @@ export async function signInWithGoogle(
     LIMIT 1
   `
   const [user] = existing
-    ? await sql<{ id: number; email: string; displayName: string; role: 'user' | 'admin' }[]>`
+    ? await sql<{ id: number; email: string; displayName: string; role: 'user' | 'admin'; accountType: 'free' | 'paid'; trialEndsAt: string | null }[]>`
         UPDATE app_users
         SET email = ${normalizedEmail}, display_name = ${displayName.trim() || email}, google_subject = ${subject}, email_verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
         WHERE id = ${existing.id}
-        RETURNING id, email, display_name AS "displayName", role
+        RETURNING id, email, display_name AS "displayName", role, account_type AS "accountType", trial_ends_at AS "trialEndsAt"
       `
-    : await sql<{ id: number; email: string; displayName: string; role: 'user' | 'admin' }[]>`
+    : await sql<{ id: number; email: string; displayName: string; role: 'user' | 'admin'; accountType: 'free' | 'paid'; trialEndsAt: string | null }[]>`
         INSERT INTO app_users (
           email,
           display_name,
@@ -178,9 +211,14 @@ export async function signInWithGoogle(
           ${registrationConsent?.privacyAcceptedAt ?? null},
           ${registrationConsent?.legalDisclaimerAcknowledgedAt ?? null}
         )
-        RETURNING id, email, display_name AS "displayName", role
+        RETURNING id, email, display_name AS "displayName", role, account_type AS "accountType", trial_ends_at AS "trialEndsAt"
       `
   await establishSession(user.id)
+  await recordAnalyticsEvent({
+    userId: user.id,
+    eventName: 'sign_in',
+    surface: 'google-auth',
+  })
   return user
 }
 
@@ -213,7 +251,15 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
   const sql = getSql()
   const [user] = await sql<AuthUser[]>`
-    SELECT u.id, u.email, u.display_name AS "displayName", u.role
+    SELECT
+      u.id,
+      u.email,
+      u.display_name AS "displayName",
+      u.role,
+      u.account_type AS "accountType",
+      u.trial_ends_at AS "trialEndsAt",
+      u.ai_copilot_enabled AS "aiCopilotEnabled",
+      u.ai_copilot_enabled_at AS "aiCopilotEnabledAt"
     FROM app_sessions s
     INNER JOIN app_users u ON u.id = s.user_id
     WHERE s.token_hash = ${hashSessionToken(token)}
@@ -221,6 +267,137 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     LIMIT 1
   `
   return user ?? null
+}
+
+export function isTrialExpired(user: Pick<AuthUser, 'role' | 'accountType' | 'trialEndsAt'>) {
+  if (user.role === 'admin' || user.accountType === 'paid') return false
+  if (!user.trialEndsAt) return true
+  const trialEndsAt = new Date(user.trialEndsAt)
+  if (Number.isNaN(trialEndsAt.valueOf())) return true
+  return trialEndsAt.getTime() <= Date.now()
+}
+
+export function getTrialDaysRemaining(user: Pick<AuthUser, 'role' | 'accountType' | 'trialEndsAt'>) {
+  if (user.role === 'admin' || user.accountType === 'paid') return null
+  if (!user.trialEndsAt) return 0
+  const trialEndsAt = new Date(user.trialEndsAt)
+  if (Number.isNaN(trialEndsAt.valueOf())) return 0
+  return Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86400000))
+}
+
+export function getUserEntitlements(
+  user: Pick<AuthUser, 'role' | 'accountType' | 'trialEndsAt'>,
+): UserEntitlements {
+  if (user.role === 'admin') {
+    return {
+      canUseResearchSurfaces: true,
+      canUseAiCopilot: true,
+      saveLimits: {
+        research: null,
+        campaign: null,
+        comparison: null,
+      },
+      compareSelectionLimit: 4,
+    }
+  }
+
+  if (user.accountType === 'paid') {
+    return {
+      canUseResearchSurfaces: true,
+      canUseAiCopilot: true,
+      saveLimits: {
+        research: null,
+        campaign: null,
+        comparison: null,
+      },
+      compareSelectionLimit: 4,
+    }
+  }
+
+  if (isTrialExpired(user)) {
+    return {
+      canUseResearchSurfaces: false,
+      canUseAiCopilot: false,
+      saveLimits: {
+        research: 5,
+        campaign: 15,
+        comparison: 5,
+      },
+      compareSelectionLimit: 2,
+    }
+  }
+
+  return {
+    canUseResearchSurfaces: true,
+    canUseAiCopilot: false,
+    saveLimits: {
+      research: 5,
+      campaign: 15,
+      comparison: 5,
+    },
+    compareSelectionLimit: 2,
+  }
+}
+
+export async function requireSignedInUser(): Promise<AuthUser> {
+  const user = await getCurrentUser()
+  if (!user) {
+    const { redirect } = await import('next/navigation')
+    redirect('/account?error=Sign%20in%20is%20required')
+  }
+  return user as AuthUser
+}
+
+export async function requireActivePlan(redirectTo = '/account?error=Your%20free%20trial%20has%20ended') {
+  const user = await requireSignedInUser()
+  if (isTrialExpired(user)) {
+    const { redirect } = await import('next/navigation')
+    redirect(redirectTo)
+  }
+  return user
+}
+
+export async function requireAiCopilotAccess() {
+  const user = await requireActivePlan(
+    '/account?error=Your%20free%20trial%20has%20ended.%20Upgrade%20to%20keep%20using%20AI%20Co-Pilot.',
+  )
+  const entitlements = getUserEntitlements(user)
+  if (!entitlements.canUseAiCopilot) {
+    const { redirect } = await import('next/navigation')
+    redirect('/account?error=AI%20Co-Pilot%20is%20included%20in%20the%20Paid%20plan')
+  }
+  if (!user.aiCopilotEnabled) {
+    const { redirect } = await import('next/navigation')
+    redirect('/account?error=Enable%20AI%20Co-Pilot%20in%20Account%20settings%20first')
+  }
+  return user
+}
+
+export async function setAiCopilotEnabled(userId: number, enabled: boolean) {
+  if (!hasDatabaseConfig()) throw new Error('Database is not configured')
+  const sql = getSql()
+  try {
+    if (enabled) {
+      // Only stamp the acknowledgment date the first time it's turned on —
+      // later on/off toggling shouldn't overwrite the original consent date.
+      await sql`
+        UPDATE app_users
+        SET
+          ai_copilot_enabled = true,
+          ai_copilot_enabled_at = COALESCE(ai_copilot_enabled_at, CURRENT_TIMESTAMP),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${userId}
+      `
+    } else {
+      await sql`
+        UPDATE app_users
+        SET ai_copilot_enabled = false, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${userId}
+      `
+    }
+  } finally {
+    await sql.end()
+  }
 }
 
 export async function verifyEmail(token: string) {
@@ -239,6 +416,11 @@ export async function verifyEmail(token: string) {
     await transaction`UPDATE app_users SET email_verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ${row.userId}`
     await transaction`UPDATE email_verification_tokens SET used_at = CURRENT_TIMESTAMP WHERE token_hash = ${hashSessionToken(token)}`
   })
+  await recordAnalyticsEvent({
+    userId: row.userId,
+    eventName: 'email_verified',
+    surface: 'account',
+  })
 }
 
 export async function requireAdmin() {
@@ -254,9 +436,15 @@ export async function signOut() {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (token && hasDatabaseConfig()) {
+    const user = await getCurrentUser()
     await getSql()`
       DELETE FROM app_sessions WHERE token_hash = ${hashSessionToken(token)}
     `
+    await recordAnalyticsEvent({
+      userId: user?.id ?? null,
+      eventName: 'sign_out',
+      surface: 'account',
+    })
   }
   cookieStore.delete(SESSION_COOKIE)
 }

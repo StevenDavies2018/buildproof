@@ -1,8 +1,10 @@
+import { AnalyticsViewTracker } from '@/components/analytics-view-tracker'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PersistedViewLink } from '@/components/persisted-view-link'
 import { getCampaignDetail } from '@/lib/research'
 import { SaveCampaignButton } from '@/components/saved-research'
+import { requireActivePlan } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,6 +77,7 @@ export default async function CampaignDetailPage({
   params: Promise<{ campaignId: string }>
   searchParams?: Promise<{ returnTo?: string }>
 }) {
+  await requireActivePlan('/account?error=Your%20free%20trial%20has%20ended.%20Upgrade%20to%20keep%20opening%20campaign%20details.')
   const resolvedParams = await params
   const resolvedSearchParams = (await searchParams) ?? {}
   const campaignId = Number.parseInt(resolvedParams.campaignId, 10)
@@ -101,6 +104,7 @@ export default async function CampaignDetailPage({
   return (
     <main className="bs-shell">
       <div className="bs-container">
+        <AnalyticsViewTracker mode="campaign-detail" />
         <section className="bs-panel">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-4xl">

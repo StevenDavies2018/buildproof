@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import type { AnalyticsEventName } from '@/lib/analytics'
+import { postAnalyticsEvent } from '@/lib/client-analytics'
 import {
   ADMIN_VIEW_STATE_KEY,
   DASHBOARD_VIEW_STATE_KEY,
@@ -18,11 +20,17 @@ export function PersistedViewLink({
   view,
   fallbackHref,
   className,
+  analyticsEventName,
+  analyticsSurface,
+  analyticsMetadata,
   children,
 }: {
   view: keyof typeof STORAGE_KEY_BY_VIEW
   fallbackHref: string
   className?: string
+  analyticsEventName?: AnalyticsEventName
+  analyticsSurface?: string
+  analyticsMetadata?: Record<string, unknown>
   children: React.ReactNode
 }) {
   const [href, setHref] = useState(fallbackHref)
@@ -39,7 +47,15 @@ export function PersistedViewLink({
   }, [fallbackHref, view])
 
   return (
-    <Link href={href} className={className}>
+    <Link
+      href={href}
+      className={className}
+      onClick={() => {
+        if (analyticsEventName && analyticsSurface) {
+          postAnalyticsEvent(analyticsEventName, analyticsSurface, analyticsMetadata)
+        }
+      }}
+    >
       {children}
     </Link>
   )

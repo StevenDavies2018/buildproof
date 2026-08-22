@@ -32,6 +32,19 @@ export type SavedComparison = SavedBase & {
 
 export type SavedResearchItem = SavedResearchView | SavedCampaign | SavedComparison
 
+export type SaveLimits = {
+  research: number | null
+  campaign: number | null
+  comparison: number | null
+}
+
+export type SavedResearchState = {
+  authenticated: boolean
+  items: SavedResearchItem[]
+  limits: SaveLimits
+  canUseAiCopilot: boolean
+}
+
 function stableHash(value: string) {
   let hash = 2166136261
   for (let index = 0; index < value.length; index += 1) {
@@ -47,14 +60,27 @@ function normalizedEntries(filters: Record<string, string>) {
     .sort(([left], [right]) => left.localeCompare(right))
 }
 
-export function researchViewIdentity(filters: Record<string, string>) {
-  return `research:${stableHash(JSON.stringify(normalizedEntries(filters)))}`
+export type ResearchViewSource = 'dashboard' | 'reports' | 'reports-structure'
+
+const RESEARCH_VIEW_BASE_PATH: Record<ResearchViewSource, string> = {
+  dashboard: '/dashboard',
+  reports: '/reports',
+  'reports-structure': '/reports/structure',
 }
 
-export function researchViewHref(filters: Record<string, string>) {
+// Same filter values saved from Dashboard vs. Reporting vs. the goal/duration
+// structure view should not collide on one identity — the source is folded
+// into the hash so each gets its own saved entry even if the filter values
+// happen to match.
+export function researchViewIdentity(filters: Record<string, string>, source: ResearchViewSource = 'dashboard') {
+  return `research:${source}:${stableHash(JSON.stringify(normalizedEntries(filters)))}`
+}
+
+export function researchViewHref(filters: Record<string, string>, source: ResearchViewSource = 'dashboard') {
+  const basePath = RESEARCH_VIEW_BASE_PATH[source]
   const params = new URLSearchParams(normalizedEntries(filters))
   const query = params.toString()
-  return query ? `/dashboard?${query}` : '/dashboard'
+  return query ? `${basePath}?${query}` : basePath
 }
 
 export function comparisonIdentity(campaignIds: number[]) {
@@ -105,9 +131,18 @@ export function subscribeToSavedResearch(listener: () => void) {
 
 export async function loadAccountSavedResearch() {
   const response = await fetch('/api/saved-research', { cache: 'no-store' })
-  if (!response.ok) return { authenticated: false, items: [] as SavedResearchItem[] }
+  if (!response.ok) {
+    return {
+      authenticated: false,
+      items: [] as SavedResearchItem[],
+      limits: { research: null, campaign: null, comparison: null },
+      canUseAiCopilot: false,
+    }
+  }
   const data = await response.json() as {
     authenticated?: boolean
+    limits?: SaveLimits
+    canUseAiCopilot?: boolean
     items?: Array<SavedResearchItem & { itemKey?: string; itemType?: SavedResearchItem['type']; payload?: Record<string, unknown> }>
   }
   const items = (data.items ?? []).map((item) => ({
@@ -119,11 +154,16 @@ export async function loadAccountSavedResearch() {
     savedAt: item.savedAt,
     snapshotVersion: item.snapshotVersion,
   })) as SavedResearchItem[]
-  return { authenticated: data.authenticated === true, items }
+  return {
+    authenticated: data.authenticated === true,
+    items,
+    limits: data.limits ?? { research: null, campaign: null, comparison: null },
+    canUseAiCopilot: data.canUseAiCopilot === true,
+  }
 }
 
 export async function saveAccountResearchItem(item: SavedResearchItem) {
-  await fetch('/api/saved-research', {
+  const response = await fetch('/api/saved-research', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -136,6 +176,10 @@ export async function saveAccountResearchItem(item: SavedResearchItem) {
       payload: item,
     }),
   })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({ error: 'Unable to save this item' }))
+    throw new Error(typeof data.error === 'string' ? data.error : 'Unable to save this item')
+  }
 }
 
 export async function removeAccountResearchItem(id: string) {

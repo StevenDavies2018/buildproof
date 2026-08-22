@@ -48,8 +48,8 @@ html[data-theme='dark'] {
   --bs-button-secondary-bg: rgba(15, 23, 42, 0.78);
   --bs-button-secondary-text: #e2e8f0;
   --bs-nav-link-text: #cbd5e1;
-  --bs-nav-link-active-bg: #f8fafc;
-  --bs-nav-link-active-text: #020617;
+  --bs-nav-link-active-bg: #020617;
+  --bs-nav-link-active-text: #f8fafc;
 }
 
 html {
@@ -72,6 +72,10 @@ body {
 
   .bs-nav-shell {
     @apply sticky top-0 z-40 px-6 pt-6 md:px-10 lg:px-14;
+  }
+
+  .bs-nav-container {
+    @apply mx-auto w-full max-w-[96rem] min-w-0;
   }
 
   .bs-container {
@@ -112,28 +116,93 @@ body {
     @apply flex flex-wrap gap-2;
   }
 
+  .bs-nav-dropdown {
+    @apply relative;
+  }
+
+  .bs-nav-dropdown summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .bs-nav-dropdown-chevron {
+    @apply ml-2 inline-block h-2.5 w-2.5 rotate-45 border-b border-r align-middle transition-transform;
+    border-color: currentColor;
+  }
+
+  .bs-nav-dropdown[open] .bs-nav-dropdown-chevron {
+    transform: rotate(-135deg);
+  }
+
+  .bs-nav-dropdown-menu {
+    @apply absolute left-0 top-[calc(100%+0.65rem)] z-50 min-w-[12rem] rounded-[1.1rem] border p-2 shadow-[0_16px_40px_rgba(15,23,42,0.18)];
+    border-color: var(--bs-border);
+    background: var(--bs-panel);
+  }
+
+  .bs-nav-dropdown-link {
+    @apply block rounded-[0.9rem] px-3 py-2 text-sm font-medium transition;
+    color: var(--bs-nav-link-text);
+  }
+
+  .bs-nav-dropdown-link:hover {
+    background: var(--bs-nav-link-active-bg);
+    color: var(--bs-nav-link-active-text);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bs-border) 45%, transparent 55%);
+  }
+
+  .bs-nav-dropdown-link-active {
+    background: var(--bs-nav-link-active-bg);
+    color: var(--bs-nav-link-active-text);
+  }
+
+  .bs-nav-account {
+    @apply inline-flex min-w-0 items-center gap-3 rounded-[1.1rem] border px-3 py-2;
+    border-color: var(--bs-border);
+    background: color-mix(in srgb, var(--bs-panel-alt) 82%, transparent 18%);
+  }
+
+  .bs-nav-account-kicker {
+    @apply text-[10px] font-semibold uppercase tracking-[0.2em];
+    color: var(--bs-text-muted);
+  }
+
+  .bs-nav-account-name {
+    @apply max-w-[14rem] truncate text-sm font-semibold;
+    color: var(--bs-text-strong);
+  }
+
+  .bs-nav-account-plan {
+    @apply rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em];
+    background: var(--bs-nav-link-active-bg);
+    color: var(--bs-nav-link-active-text);
+  }
+
   .bs-nav-link {
     @apply rounded-full px-4 py-2 text-sm font-medium transition;
     color: var(--bs-nav-link-text);
   }
 
   .bs-nav-link:hover {
-    background: color-mix(in srgb, var(--bs-panel-alt) 70%, transparent 30%);
-    color: var(--bs-text-strong);
+    background: var(--bs-nav-link-active-bg);
+    color: var(--bs-nav-link-active-text);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bs-border) 45%, transparent 55%);
   }
 
   .bs-nav-link-active {
-    background: var(--bs-nav-link-active-bg);
-    color: var(--bs-nav-link-active-text);
+    background: transparent !important;
+    color: var(--bs-text-strong) !important;
+    box-shadow: none !important;
+    outline: none !important;
   }
 
-  .bs-nav-report-button {
-    @apply border border-black bg-black text-white shadow-[0_8px_20px_rgba(2,6,23,0.18)];
-  }
-
-  .bs-nav-report-button:hover,
-  .bs-nav-report-button-active {
-    @apply border-sky-400 bg-black text-white ring-2 ring-sky-300/40;
+  .bs-nav-link-active:hover,
+  .bs-nav-link-active:focus,
+  .bs-nav-link-active:focus-visible,
+  .bs-nav-link-active:active {
+    background: var(--bs-nav-link-active-bg) !important;
+    color: var(--bs-nav-link-active-text) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bs-border) 45%, transparent 55%) !important;
+    outline: none !important;
   }
 
   .bs-theme-toggle {

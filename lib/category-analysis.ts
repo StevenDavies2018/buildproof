@@ -38,6 +38,56 @@ export type CategoryAnalysisMetric = {
   calculatedAt: string
 }
 
+export type CategoryYearRow = {
+  launchYear: number
+  campaignCount: number
+  completedCount: number
+  successCount: number
+  failureCount: number
+  successRate: number | null
+  medianGoalUsd: number | null
+  medianPledgedUsd: number | null
+  medianBackers: number | null
+  medianAveragePledgeUsd: number | null
+  medianFundingMultiple: number | null
+  moneyComparableCount: number
+}
+
+function unknownToNumber(value: unknown) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+// Shared by Reporting's yearly-activity cards and AI Co-Pilot's year-trend
+// context so both read the same materialized trend_details_json, not two
+// separately maintained parsers.
+export function getMetricYearRows(metric: Pick<CategoryAnalysisMetric, 'trendDetails'>): CategoryYearRow[] {
+  if (!Array.isArray(metric.trendDetails.years)) return []
+
+  return metric.trendDetails.years
+    .map((row) => {
+      const launchYear = unknownToNumber(row.launchYear)
+      const campaignCount = unknownToNumber(row.campaignCount)
+      if (launchYear === null || campaignCount === null) return null
+
+      return {
+        launchYear,
+        campaignCount,
+        completedCount: unknownToNumber(row.completedCount) ?? 0,
+        successCount: unknownToNumber(row.successCount) ?? 0,
+        failureCount: unknownToNumber(row.failureCount) ?? 0,
+        successRate: unknownToNumber(row.successRate),
+        medianGoalUsd: unknownToNumber(row.medianGoalUsd),
+        medianPledgedUsd: unknownToNumber(row.medianPledgedUsd),
+        medianBackers: unknownToNumber(row.medianBackers),
+        medianAveragePledgeUsd: unknownToNumber(row.medianAveragePledgeUsd),
+        medianFundingMultiple: unknownToNumber(row.medianFundingMultiple),
+        moneyComparableCount: unknownToNumber(row.moneyComparableCount) ?? 0,
+      }
+    })
+    .filter((row): row is CategoryYearRow => row !== null)
+}
+
 type CategoryAnalysisMetricRow = Omit<
   CategoryAnalysisMetric,
   | 'taxonomyNodeId'
@@ -199,11 +249,17 @@ function isTransientDatabaseError(error: unknown): boolean {
   )
 }
 
-async function queryCategoryAnalysisMetrics(
+// Shared by the category roster, and by the goal-size / duration outcome
+// breakdowns in lib/outcome-analysis.ts, so every analysis surface applies
+// the exact same filter semantics to the exact same underlying campaign set.
+// `options` lets a caller drop one specific bucketing filter (e.g. duration)
+// so that dimension's own buckets stay visible instead of collapsing to one.
+export function buildFilteredCampaignsCte(
+  sql: ReturnType<typeof getSql>,
   metricWindow: CategoryAnalysisMetric['metricWindow'],
   inputFilters: DashboardFilters,
+  options: { ignoreDurationBucket?: boolean; ignoreMinGoal?: boolean } = {},
 ) {
-  const sql = getSql()
   const filters = toRequiredFilters(inputFilters)
   const minimumBackersValue =
     filters.minimumBackers !== '' && Number.isFinite(Number(filters.minimumBackers))
@@ -238,7 +294,7 @@ async function queryCategoryAnalysisMetrics(
       ? (metricWindowStart > launchWindowStart ? metricWindowStart : launchWindowStart)
       : metricWindowStart ?? launchWindowStart
 
-  try {
+  {
     const searchFilter =
       searchPatterns.length === 0
         ? sql``
@@ -292,7 +348,7 @@ async function queryCategoryAnalysisMetrics(
         : sql`AND COALESCE(cr.raw_state, '') = ${filters.rawState}`
 
     const durationFilter =
-      filters.durationBucket === ''
+      options.ignoreDurationBucket || filters.durationBucket === ''
         ? sql``
         : filters.durationBucket === 'short'
           ? sql`AND cn.campaign_duration_days BETWEEN 1 AND 15`
@@ -305,7 +361,7 @@ async function queryCategoryAnalysisMetrics(
                 : sql``
 
     const minGoalFilter =
-      minGoalValue === null ? sql`` : sql`AND cmn.usd_goal >= ${minGoalValue}`
+      options.ignoreMinGoal || minGoalValue === null ? sql`` : sql`AND cmn.usd_goal >= ${minGoalValue}`
     const minPledgedFilter =
       minPledgedValue === null ? sql`` : sql`AND cmn.usd_pledged >= ${minPledgedValue}`
 
@@ -408,6 +464,19 @@ async function queryCategoryAnalysisMetrics(
         FROM grouped_campaigns gc
       )
     `
+
+    return { filteredCampaigns, effectiveWindowStart }
+  }
+}
+
+async function queryCategoryAnalysisMetrics(
+  metricWindow: CategoryAnalysisMetric['metricWindow'],
+  inputFilters: DashboardFilters,
+) {
+  const sql = getSql()
+
+  try {
+    const { filteredCampaigns, effectiveWindowStart } = buildFilteredCampaignsCte(sql, metricWindow, inputFilters)
 
     const metricRows = await sql<CategoryAnalysisMetricRow[]>`
       ${filteredCampaigns}

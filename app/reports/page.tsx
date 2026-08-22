@@ -1,9 +1,14 @@
+import { AnalyticsViewTracker } from '@/components/analytics-view-tracker'
+import { AnalyticsLink } from '@/components/analytics-link'
 import Link from 'next/link'
 import ViewStatePersistence from '@/components/view-state-persistence'
 import { formatNormalizedStatusLabel, RAW_STATE_OPTIONS } from '@/lib/state-labels'
+import { getUserEntitlements, requireActivePlan } from '@/lib/auth'
 import {
   type CategoryAnalysisMetric,
+  type CategoryYearRow,
   getCategoryAnalysisMetrics,
+  getMetricYearRows,
 } from '@/lib/category-analysis'
 import { HierarchicalCategoryFilters } from '@/components/hierarchical-category-filters'
 import { getDashboardOverview } from '@/lib/dashboard'
@@ -11,6 +16,7 @@ import {
   type ResearchFilterSearchParams,
   toDashboardFilters,
 } from '@/lib/research-filters'
+import { SaveResearchViewButton, SavedResearchPanel } from '@/components/saved-research'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,21 +81,6 @@ type CategoryDisplayMetric = Pick<
   CategoryAnalysisMetric,
   'campaignCount' | 'successRate' | 'medianGoalUsd' | 'moneyComparableCount'
 >
-
-type ReportYear = {
-  launchYear: number
-  campaignCount: number
-  completedCount: number
-  successCount: number
-  failureCount: number
-  successRate: number | null
-  medianGoalUsd: number | null
-  medianPledgedUsd: number | null
-  medianBackers: number | null
-  medianAveragePledgeUsd: number | null
-  medianFundingMultiple: number | null
-  moneyComparableCount: number
-}
 
 type ReportsSearchParams = ResearchFilterSearchParams & {
   window?: string
@@ -188,32 +179,6 @@ function trendClass(value: CategoryAnalysisMetric['trendLabel']) {
   return 'bs-trend-limited'
 }
 
-function getYearRows(metric: CategoryAnalysisMetric): ReportYear[] {
-  if (!Array.isArray(metric.trendDetails.years)) return []
-
-  return metric.trendDetails.years
-    .map((row) => {
-      const launchYear = numeric(row.launchYear)
-      const campaignCount = numeric(row.campaignCount)
-      if (launchYear === null || campaignCount === null) return null
-
-      return {
-        launchYear,
-        campaignCount,
-        completedCount: numeric(row.completedCount) ?? 0,
-        successCount: numeric(row.successCount) ?? 0,
-        failureCount: numeric(row.failureCount) ?? 0,
-        successRate: numeric(row.successRate),
-        medianGoalUsd: numeric(row.medianGoalUsd),
-        medianPledgedUsd: numeric(row.medianPledgedUsd),
-        medianBackers: numeric(row.medianBackers),
-        medianAveragePledgeUsd: numeric(row.medianAveragePledgeUsd),
-        medianFundingMultiple: numeric(row.medianFundingMultiple),
-        moneyComparableCount: numeric(row.moneyComparableCount) ?? 0,
-      }
-    })
-    .filter((row): row is ReportYear => row !== null)
-}
 
 function categorySortValue(metric: CategoryDisplayMetric, sortBy: CategorySort) {
   if (sortBy === 'campaigns') return metric.campaignCount
@@ -300,9 +265,16 @@ function CategoryCard({
           </p>
         </div>
       </div>
-      <Link href={href} scroll={false} className="bs-button-secondary mt-[30px] inline-flex">
+      <AnalyticsLink
+        href={href}
+        scroll={false}
+        eventName="report_category_card_opened"
+        surface="reports"
+        metadata={{ taxonomyLabel: metric.taxonomyLabel }}
+        className="bs-button-secondary mt-[30px] inline-flex"
+      >
         View category report
-      </Link>
+      </AnalyticsLink>
     </article>
   )
 }
@@ -312,6 +284,8 @@ export default async function ReportsPage({
 }: {
   searchParams?: Promise<ReportsSearchParams>
 }) {
+  const user = await requireActivePlan('/account?error=Your%20free%20trial%20has%20ended.%20Upgrade%20to%20keep%20using%20Reporting%20View.')
+  const entitlements = getUserEntitlements(user)
   const resolvedSearchParams = (await searchParams) ?? {}
   const metricWindow: CategoryAnalysisMetric['metricWindow'] =
     resolvedSearchParams.window === 'last_24_months' ? 'last_24_months' : 'all_time'
@@ -359,6 +333,7 @@ export default async function ReportsPage({
     return (
       <main className="bs-shell">
         <ViewStatePersistence />
+        <AnalyticsViewTracker mode="reports" />
         <div className="bs-container">
           <section className="bs-panel">
             <p className="bs-kicker">Reporting View</p>
@@ -376,7 +351,7 @@ export default async function ReportsPage({
     ? null
     : metrics.find((metric) => metric.dimensionKey.toLowerCase() === selectedCategory.toLowerCase())
       ?? createEmptyMetric(selectedCategory, metricWindow)
-  const availableYears = getYearRows(metrics[0])
+  const availableYears = getMetricYearRows(metrics[0])
   const requestedYear = Number(resolvedSearchParams.year)
   const selectedYear = Number.isInteger(requestedYear) && availableYears.some(
     (year) => year.launchYear === requestedYear,
@@ -384,9 +359,44 @@ export default async function ReportsPage({
     ? requestedYear
     : null
   const selectedYearMetric = selectedMetric && selectedYear !== null
-    ? getYearRows(selectedMetric).find((year) => year.launchYear === selectedYear) ?? null
+    ? getMetricYearRows(selectedMetric).find((year) => year.launchYear === selectedYear) ?? null
     : null
   const displayedMetric = selectedYearMetric ?? selectedMetric
+
+  // Captures full reporting state, including an empty taxonomyLabel — saving
+  // without drilling into one category preserves the ranked multi-category
+  // roster (all subcategories under the current filters), not just a single
+  // category's detail report.
+  const reportSavableFilters: Record<string, string> = Object.fromEntries(
+    Object.entries({
+      window: metricWindow,
+      search: dashboardFilters.search ?? '',
+      categoryParent: dashboardFilters.categoryParent ?? '',
+      categorySlug: dashboardFilters.categorySlug ?? '',
+      taxonomyLabel: selectedCategory,
+      rawState: dashboardFilters.rawState ?? '',
+      durationBucket: dashboardFilters.durationBucket ?? '',
+      launchWindow: dashboardFilters.launchWindow ?? '',
+      minimumBackers: dashboardFilters.minimumBackers ?? '',
+      minGoal: dashboardFilters.minGoal ?? '',
+      minPledged: dashboardFilters.minPledged ?? '',
+      includeFailures: dashboardFilters.includeFailures ?? '',
+      fullyResearchableOnly: dashboardFilters.fullyResearchableOnly ?? '',
+      trend: trendFilter === 'all' ? '' : trendFilter,
+      sort: categorySort === 'campaigns' ? '' : categorySort,
+      order: sortOrder === 'desc' ? '' : sortOrder,
+      year: selectedYear === null ? '' : String(selectedYear),
+    }).filter(([, value]) => value !== ''),
+  )
+  const reportSavedLabel = selectedCategory
+    ? `${selectedCategory} report`
+    : [
+        dashboardFilters.categoryParent || 'All categories',
+        DURATION_OPTIONS.find((option) => option.value === dashboardFilters.durationBucket && option.value)?.label,
+        metricWindow === 'last_24_months' ? 'Last 24 months' : null,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(' · ') || 'Reporting roster'
 
   const categoryEntries = metrics
     .filter((metric) => metric.dimensionKey !== 'all')
@@ -394,9 +404,9 @@ export default async function ReportsPage({
       metric,
       displayMetric: selectedYear === null
         ? metric
-        : getYearRows(metric).find((year) => year.launchYear === selectedYear) ?? null,
+        : getMetricYearRows(metric).find((year) => year.launchYear === selectedYear) ?? null,
     }))
-    .filter((entry): entry is { metric: CategoryAnalysisMetric; displayMetric: CategoryAnalysisMetric | ReportYear } => (
+    .filter((entry): entry is { metric: CategoryAnalysisMetric; displayMetric: CategoryAnalysisMetric | CategoryYearRow } => (
       entry.displayMetric !== null
     ))
 
@@ -415,7 +425,7 @@ export default async function ReportsPage({
       return sortOrder === 'asc' ? difference : -difference
     })
 
-  const years = selectedMetric ? getYearRows(selectedMetric) : getYearRows(metrics[0])
+  const years = selectedMetric ? getMetricYearRows(selectedMetric) : getMetricYearRows(metrics[0])
   const maxYearCount = Math.max(...years.map((year) => year.campaignCount), 1)
   const moneyCoverage = displayedMetric && displayedMetric.campaignCount
     ? (displayedMetric.moneyComparableCount / displayedMetric.campaignCount) * 100
@@ -462,12 +472,24 @@ export default async function ReportsPage({
   return (
     <main className="bs-shell">
       <ViewStatePersistence />
+      <AnalyticsViewTracker mode="reports" />
+      <div className="mx-auto grid w-full max-w-[96rem] min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
       <div className="bs-container grid gap-8">
         <section className="bs-panel">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="bs-kicker">Report controls</p>
               <h2 className="bs-title mt-2 text-2xl font-semibold">Choose the evidence slice</h2>
+            </div>
+            <nav className="flex flex-wrap gap-2" aria-label="Reporting sections">
+              <Link href="/reports" className="bs-button-primary" aria-current="page">Category reports</Link>
+              <Link href="/reports/structure" className="bs-button-secondary">Goal &amp; duration</Link>
+            </nav>
+          </div>
+          <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl text-sm leading-6 text-slate-600">
+              Looking for whether lower goals or shorter durations correlate with success? See{' '}
+              <Link href="/reports/structure" className="font-medium text-slate-900 underline underline-offset-4">Goal &amp; duration</Link>.
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Link
@@ -482,6 +504,12 @@ export default async function ReportsPage({
               >
                 Last 24 months
               </Link>
+              <SaveResearchViewButton
+                filters={reportSavableFilters}
+                label={reportSavedLabel}
+                source="reports"
+                entitlementLimits={entitlements.saveLimits}
+              />
             </div>
           </div>
 
@@ -935,7 +963,7 @@ export default async function ReportsPage({
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <a
+                      <AnalyticsLink
                         href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(buildHref({
                           taxonomyLabel: selectedMetric.dimensionKey,
                           trend: trendFilter,
@@ -943,12 +971,18 @@ export default async function ReportsPage({
                           order: sortOrder,
                           year: selectedYear === null ? undefined : String(selectedYear),
                         }))}`}
+                        eventName="report_supporting_campaign_opened"
+                        surface="reports"
+                        metadata={{
+                          campaignId: campaign.campaignId,
+                          taxonomyLabel: selectedMetric.dimensionKey,
+                        }}
                         target="_blank"
                         rel="noreferrer"
                         className="bs-button-secondary"
                       >
                         Open detail
-                      </a>
+                      </AnalyticsLink>
                       {campaign.projectUrl ? (
                         <a href={campaign.projectUrl} target="_blank" rel="noreferrer" className="bs-button-primary">
                           Kickstarter source
@@ -996,6 +1030,8 @@ export default async function ReportsPage({
             ) : null}
           </section>
         ) : null}
+      </div>
+        <SavedResearchPanel />
       </div>
     </main>
   )

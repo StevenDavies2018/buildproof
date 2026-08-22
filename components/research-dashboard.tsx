@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { HierarchicalCategoryFilters } from '@/components/hierarchical-category-filters'
+import { AnalyticsLink } from '@/components/analytics-link'
 import { formatNormalizedStatusLabel, RAW_STATE_OPTIONS } from '@/lib/state-labels'
 import {
   type DashboardFilters,
@@ -8,6 +9,7 @@ import {
   type DashboardTrendRow,
   getDashboardOverview,
 } from '@/lib/dashboard'
+import type { UserEntitlements } from '@/lib/auth'
 import { SaveCampaignButton, SaveResearchViewButton } from '@/components/saved-research'
 
 const LAUNCH_WINDOW_OPTIONS = [
@@ -444,10 +446,12 @@ export default async function ResearchDashboard({
   filters,
   compareIds,
   startMode = false,
+  entitlements,
 }: {
   filters: DashboardFilters
   compareIds: number[]
   startMode?: boolean
+  entitlements: UserEntitlements
 }) {
   const data = await getDashboardOverview(filters)
   const savableFilters = Object.fromEntries(
@@ -530,6 +534,7 @@ export default async function ResearchDashboard({
   const compareSelectionMixed = selectedCompareCategorySet.size > 1
   const activeView = data.filters.view === 'analysis' ? 'analysis' : 'campaigns'
   const compareQueryValue = compareIds.length ? compareIds.join(',') : undefined
+  const compareSelectionLimit = entitlements.compareSelectionLimit
   const hasUserSelection = Boolean(
     filters.search || filters.categoryParent || filters.categorySlug || filters.taxonomyLabel || filters.durationBucket ||
     filters.rawState || filters.minGoal || filters.minPledged || filters.years || filters.launchWindow ||
@@ -777,6 +782,7 @@ export default async function ResearchDashboard({
                       filters={savableFilters}
                       label={savedResearchLabel}
                       className="bs-button-secondary border-white/20 bg-white/10 text-white hover:border-white/40 hover:text-white"
+                      entitlementLimits={entitlements.saveLimits}
                     />
                     <Link href="/admin" className="bs-button-secondary border-white/20 bg-white/10 text-white hover:border-white/40 hover:text-white">
                       Open admin view
@@ -1148,7 +1154,7 @@ export default async function ResearchDashboard({
             <div>
               <p className="bs-kicker">Compare queue</p>
               <p className="mt-2 text-sm text-slate-600">
-                {compareIds.length} selected for side-by-side review. Choose 2 to 4 campaigns for the compare view.
+                {compareIds.length} selected for side-by-side review. Choose 2 to {compareSelectionLimit} campaigns for the compare view.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {selectedCompareCampaigns.map((campaign) => (
@@ -1162,7 +1168,7 @@ export default async function ResearchDashboard({
                   ? 'This queue currently spans multiple categories. Compare will still open, but same-category review is easier to trust.'
                   : compareCategorySlug
                     ? `Compare is locked to ${compareCategoryName ?? compareCategorySlug} until you clear the queue.`
-                    : 'Select two to four campaigns from one category for the strongest compare read.'}
+                    : `Select up to ${compareSelectionLimit} campaigns from one category for the strongest compare read.`}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -1197,7 +1203,7 @@ export default async function ResearchDashboard({
                 Boolean(compareCategorySlug) &&
                 Boolean(campaign.categorySlug) &&
                 compareCategorySlug !== campaign.categorySlug
-              const compareLimitReached = !isSelected && compareIds.length >= 4
+              const compareLimitReached = !isSelected && compareIds.length >= compareSelectionLimit
 
               return (
                 <article
@@ -1249,12 +1255,15 @@ export default async function ResearchDashboard({
                 </div>
 
                 <h3 className="bs-title mt-4 text-2xl font-semibold">
-                  <Link
-                      href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/dashboard${buildDashboardQueryString(data.filters)}`)}`}
+                  <AnalyticsLink
+                    href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/dashboard${buildDashboardQueryString(data.filters)}`)}`}
+                    eventName="campaign_detail_opened"
+                    surface="dashboard"
+                    metadata={{ campaignId: campaign.campaignId }}
                     className="hover:underline"
                   >
                     {campaign.projectName}
-                  </Link>
+                  </AnalyticsLink>
                 </h3>
                 <p className="mt-2 text-sm text-slate-500">
                   {campaign.primaryClassificationLabel ?? 'Unclassified'} |{' '}
@@ -1332,17 +1341,21 @@ export default async function ResearchDashboard({
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <Link
-                      href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/dashboard${buildDashboardQueryString(data.filters)}`)}`}
+                  <AnalyticsLink
+                    href={`/campaigns/${campaign.campaignId}?returnTo=${encodeURIComponent(`/dashboard${buildDashboardQueryString(data.filters)}`)}`}
+                    eventName="campaign_detail_opened"
+                    surface="dashboard"
+                    metadata={{ campaignId: campaign.campaignId }}
                     className="bs-button-secondary"
                   >
                     Open detail
-                  </Link>
+                  </AnalyticsLink>
                   <SaveCampaignButton
                     campaignId={campaign.campaignId}
                     projectName={campaign.projectName}
                     categoryLabel={campaign.primaryClassificationLabel ?? campaign.categoryName}
                     projectUrl={campaign.projectUrl}
+                    entitlementLimits={entitlements.saveLimits}
                   />
                   {campaign.projectUrl ? (
                     <a
@@ -1363,14 +1376,20 @@ export default async function ResearchDashboard({
                       Compare full
                     </span>
                   ) : (
-                    <Link
+                    <AnalyticsLink
                       href={`/dashboard${buildDashboardQueryString({
                         ...data.filters,
                         compare: isSelected
                           ? compareIds.filter((id) => id !== campaign.campaignId).join(',')
-                          : [...compareIds, campaign.campaignId].slice(0, 4).join(','),
+                          : [...compareIds, campaign.campaignId].slice(0, compareSelectionLimit).join(','),
                       } as DashboardFilters & { compare?: string })}`}
                       scroll={false}
+                      eventName="compare_selection_changed"
+                      surface="dashboard"
+                      metadata={{
+                        action: isSelected ? 'remove' : 'add',
+                        campaignId: campaign.campaignId,
+                      }}
                       className={
                         isSelected
                           ? 'bs-button-secondary border-amber-300 bg-amber-100 text-amber-900 hover:border-amber-400 hover:bg-amber-200'
@@ -1378,7 +1397,7 @@ export default async function ResearchDashboard({
                       }
                     >
                       {isSelected ? 'Remove from compare' : 'Select for compare'}
-                    </Link>
+                    </AnalyticsLink>
                   )}
                   {campaign.categorySlug ? (
                     <Link
@@ -1392,6 +1411,10 @@ export default async function ResearchDashboard({
                 {categoryMismatch ? (
                   <p className="mt-3 text-xs leading-6 text-rose-700">
                     Clear the current compare queue or choose projects inside {compareCategoryName ?? compareCategorySlug}.
+                  </p>
+                ) : compareLimitReached ? (
+                  <p className="mt-3 text-xs leading-6 text-amber-700">
+                    Trial plans can compare up to {compareSelectionLimit} campaigns at once. Upgrade to unlock 4-campaign compare sets.
                   </p>
                 ) : null}
               </article>

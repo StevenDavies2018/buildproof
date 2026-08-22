@@ -1,6 +1,8 @@
+import { AnalyticsViewTracker } from '@/components/analytics-view-tracker'
 import ResearchDashboard from '@/components/research-dashboard'
 import { SavedResearchPanel } from '@/components/saved-research'
 import ViewStatePersistence from '@/components/view-state-persistence'
+import { getUserEntitlements, requireActivePlan } from '@/lib/auth'
 import { type DashboardFilters } from '@/lib/dashboard'
 import { toDashboardFilters } from '@/lib/research-filters'
 
@@ -34,7 +36,9 @@ export default async function Home({
     fullyResearchableOnly?: string
   }>
 }) {
+  const user = await requireActivePlan('/account?error=Your%20free%20trial%20has%20ended.%20Upgrade%20to%20keep%20using%20User%20View.')
   const resolvedSearchParams = (await searchParams) ?? {}
+  const entitlements = getUserEntitlements(user)
 
   const filters: DashboardFilters = {
     ...toDashboardFilters(resolvedSearchParams),
@@ -49,8 +53,15 @@ export default async function Home({
   return (
     <main className="bs-shell">
       <ViewStatePersistence />
+      <AnalyticsViewTracker mode="dashboard" />
       <div className="mx-auto grid w-full max-w-[96rem] min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
-        <ResearchDashboard filters={filters} compareIds={compareIds} startMode />
+        <ResearchDashboard
+          filters={filters}
+          compareIds={compareIds}
+          startMode
+          entitlements={entitlements}
+        />
+        
         <SavedResearchPanel />
       </div>
     </main>

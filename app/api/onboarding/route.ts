@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { recordAnalyticsEvent } from '@/lib/analytics'
 import { getCurrentUser } from '@/lib/auth'
 import { getSql, hasDatabaseConfig } from '@/lib/db'
 import { ONBOARDING_WALKTHROUGH_KEY, type OnboardingStatus } from '@/lib/onboarding'
@@ -85,6 +86,14 @@ export async function POST(request: Request) {
     `
   } catch {
     return NextResponse.json({ ok: false, fallback: true })
+  }
+
+  if (status === 'completed' || status === 'skipped') {
+    await recordAnalyticsEvent({
+      userId: user.id,
+      eventName: status === 'completed' ? 'onboarding_completed' : 'onboarding_skipped',
+      surface: 'onboarding',
+    })
   }
 
   return NextResponse.json({ ok: true })
