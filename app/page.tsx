@@ -1,5 +1,9 @@
 import Link from 'next/link'
 import { getDashboardOverview } from '@/lib/dashboard'
+import { getUserEntitlements } from '@/lib/auth'
+
+const TRIAL_DAYS = 7
+const PAID_PRICE_USD = 29
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +21,12 @@ function formatCoverage(value: number, total: number) {
 
 export default async function LandingPage() {
   const data = await getDashboardOverview({ cardLimit: '12' })
+  const trialEntitlements = getUserEntitlements({
+    role: 'user',
+    accountType: 'free',
+    trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+  })
+  const paidEntitlements = getUserEntitlements({ role: 'user', accountType: 'paid', trialEndsAt: null })
   const metrics = [
     ['Campaigns analyzed', formatInteger(data.summary.comparableCampaigns), 'TTRPG campaigns in the current research slice'],
     ['Success rate', formatPercent(data.summary.successRate), 'Completed campaigns that reached their goal'],
@@ -65,7 +75,81 @@ export default async function LandingPage() {
         <section className="bs-panel flex flex-col gap-6 p-5 md:flex-row md:items-center md:justify-between">
           <div><p className="bs-kicker">Built for clear decisions</p><h2 className="bs-title mt-2 text-3xl font-semibold">No black-box score required.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Backer Sonar starts with source data, explicit filters, reproducible calculations, and visible provenance. AI may come later, but the evidence comes first.</p></div>
         </section>
+
+        <section className="grid gap-6">
+          <div>
+            <p className="bs-kicker">Pricing</p>
+            <h2 className="bs-title mt-2 text-3xl font-semibold">One plan, no surprises.</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+              Start with a {TRIAL_DAYS}-day free trial, no credit card required. Upgrade whenever you want full,
+              unlimited access.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <article className="bs-panel p-6">
+              <p className="bs-kicker">Free trial</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">$0 <span className="text-base font-normal text-slate-500">for {TRIAL_DAYS} days</span></p>
+              <ul className="mt-4 grid gap-2 text-sm leading-6 text-slate-600">
+                <li>Full Dashboard and Reporting access during the trial</li>
+                <li>Up to {trialEntitlements.saveLimits.research} saved research views</li>
+                <li>Up to {trialEntitlements.saveLimits.campaign} saved campaigns</li>
+                <li>Up to {trialEntitlements.saveLimits.comparison} saved comparisons</li>
+                <li>Compare up to {trialEntitlements.compareSelectionLimit} campaigns at once</li>
+                <li className="text-slate-400">AI Co-Pilot not included</li>
+                <li className="text-slate-400">After {TRIAL_DAYS} days, research surfaces pause until you upgrade &mdash; saved work stays visible</li>
+              </ul>
+              <Link href="/account" className="bs-button-secondary mt-6 inline-flex">Start free trial</Link>
+            </article>
+            <article className="bs-panel border-2 border-sky-400 p-6">
+              <p className="bs-kicker">Paid</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">${PAID_PRICE_USD} <span className="text-base font-normal text-slate-500">/ month</span></p>
+              <ul className="mt-4 grid gap-2 text-sm leading-6 text-slate-600">
+                <li>Full Dashboard and Reporting access, always</li>
+                <li>Unlimited saved research views</li>
+                <li>Unlimited saved campaigns</li>
+                <li>Unlimited saved comparisons</li>
+                <li>Compare up to {paidEntitlements.compareSelectionLimit} campaigns at once</li>
+                <li className="font-medium text-slate-900">AI Co-Pilot included</li>
+                <li className="text-slate-400">Cancel anytime &mdash; access continues through the period you already paid for, no refund for the remainder</li>
+              </ul>
+              <Link href="/account" className="bs-button-primary mt-6 inline-flex">Upgrade to Paid</Link>
+            </article>
+          </div>
+        </section>
       </div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'Backer Sonar',
+            description: 'Historical Kickstarter research for evidence-based product investigation.',
+            url: 'https://www.backersonar.com',
+            applicationCategory: 'BusinessApplication',
+            operatingSystem: 'Web',
+            offers: {
+              '@type': 'Offer',
+              price: PAID_PRICE_USD.toFixed(2),
+              priceCurrency: 'USD',
+              priceSpecification: {
+                '@type': 'UnitPriceSpecification',
+                price: PAID_PRICE_USD.toFixed(2),
+                priceCurrency: 'USD',
+                unitText: 'MONTH',
+                billingDuration: 'P1M',
+              },
+              eligibleDuration: {
+                '@type': 'QuantitativeValue',
+                value: String(TRIAL_DAYS),
+                unitCode: 'DAY',
+              },
+              availability: 'https://schema.org/InStock',
+              category: 'Subscription',
+            },
+          }),
+        }}
+      />
     </main>
   )
 }

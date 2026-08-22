@@ -1,10 +1,13 @@
 import './globals.css'
 import { Suspense } from 'react'
+import Script from 'next/script'
 import localFont from 'next/font/local'
 import AppNavbar from '@/components/app-navbar'
 import OnboardingProvider from '@/components/onboarding-provider'
 import SiteFooter from '@/components/site-footer'
 import { getCurrentUser, getUserEntitlements } from '@/lib/auth'
+
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-S888QYSB36'
 
 export const metadata = {
   metadataBase: new URL('https://backer-sonar.local'),
@@ -45,6 +48,19 @@ export default async function RootLayout({
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <body className={`${firaSans.variable} ${firaCode.variable} font-sans`}>
+        <Script strategy="afterInteractive" src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} />
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_MEASUREMENT_ID}');
+            `,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
