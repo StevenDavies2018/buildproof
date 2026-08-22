@@ -82,7 +82,10 @@ async function sendVerificationEmail(userId: number, email: string, displayName:
     INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
     VALUES (${userId}, ${hashSessionToken(token)}, ${verificationExpiry()})
   `
-  const baseUrl = process.env.APP_URL ?? 'http://localhost:3000'
+  // `||`, not `??` — APP_URL can be present but set to an empty string,
+  // which would otherwise silently produce a relative link inside the
+  // verification email (broken outside a browser's page context).
+  const baseUrl = process.env.APP_URL || 'http://localhost:3000'
   const resend = new Resend(process.env.RESEND_API_KEY)
   const result = await resend.emails.send({
     from: process.env.EMAIL_FROM,

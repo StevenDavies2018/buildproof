@@ -19,5 +19,8 @@ export function getStripe() {
 }
 
 export function getAppUrl() {
-  return (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+  // `||`, not `??` — APP_URL can be present in the environment but set to an
+  // empty string, which would otherwise silently produce relative
+  // success_url/cancel_url/return_url values that Stripe's API rejects.
+  return (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
 }
