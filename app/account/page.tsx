@@ -102,7 +102,7 @@ export default async function AccountPage({
               <p className="bs-kicker">Backer Sonar account</p>
               <h1 className="bs-title mt-2 text-4xl font-semibold">Keep your research workspace</h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">
-                Save research views, campaigns, and comparisons across sessions. Accounts are currently limited to this local POC environment.
+                Save research views, campaigns, and comparisons across sessions.
               </p>
             </div>
             <ThemeToggle className="bs-theme-toggle self-start" />

@@ -49,21 +49,47 @@ export default async function LandingPage() {
                 <Link href="/account" className="inline-flex items-center rounded-full border border-white/40 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">Create an account</Link>
                 <Link href="/account" className="inline-flex items-center rounded-full px-5 py-3 text-sm font-semibold text-sky-100 transition hover:bg-white/10">Sign in</Link>
               </div>
-              <p className="mt-4 text-xs text-slate-300">Currently focused on the TTRPG proof-of-concept dataset.</p>
+              <p className="mt-4 text-xs text-slate-300">Currently focused on the TTRPG dataset, with more categories planned.</p>
             </div>
             <div className="rounded-[2rem] border border-white/25 bg-slate-950/30 p-4 backdrop-blur">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-200">TTRPG market snapshot</p>
-              <div className="mt-3 grid gap-2">
-                {metrics.map(([label, value, text]) => (
-                  <div key={label} className="rounded-2xl border border-white/10 bg-white/10 p-3">
-                    <div className="flex items-center justify-between gap-3"><span className="text-sm font-semibold">{label}</span><span className="font-mono text-lg font-semibold text-white">{value}</span></div>
-                    <p className="mt-1 text-sm leading-5 text-slate-300">{text}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-200">Pricing</p>
+              <div className="mt-3 grid gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold">Free trial</span>
+                    <span className="font-mono text-lg font-semibold text-white">$0 <span className="text-xs font-normal text-slate-300">/ {TRIAL_DAYS}d</span></span>
                   </div>
-                ))}
+                  <p className="mt-1 text-xs leading-5 text-slate-300">
+                    Full research access, up to {trialEntitlements.saveLimits.research} saved views, compare {trialEntitlements.compareSelectionLimit}. No AI Co-Pilot.
+                  </p>
+                  <Link href="/account" className="mt-2 inline-flex items-center rounded-full border border-white/40 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10">Start free trial</Link>
+                </div>
+                <div className="rounded-2xl border border-sky-300/60 bg-white/10 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold">Paid</span>
+                    <span className="font-mono text-lg font-semibold text-white">${PAID_PRICE_USD} <span className="text-xs font-normal text-slate-300">/ mo</span></span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-300">
+                    Unlimited saves, compare {paidEntitlements.compareSelectionLimit}, AI Co-Pilot included. Cancel anytime.
+                  </p>
+                  <Link href="/account" className="mt-2 inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-sky-100">Upgrade to Paid</Link>
+                </div>
               </div>
-              <p className="mt-3 text-[11px] text-slate-300">Source-linked Kickstarter data · deterministic calculations · current TTRPG POC slice</p>
             </div>
           </div>
+        </section>
+
+        <section className="bs-panel p-5">
+          <p className="bs-kicker">TTRPG market snapshot</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            {metrics.map(([label, value, text]) => (
+              <div key={label} className="rounded-2xl border border-bs-border bg-[color:var(--bs-field-bg)] p-3">
+                <div className="flex items-center justify-between gap-3"><span className="text-sm font-semibold text-slate-700">{label}</span><span className="font-mono text-lg font-semibold text-slate-900">{value}</span></div>
+                <p className="mt-1 text-sm leading-5 text-slate-500">{text}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-slate-500">Source-linked Kickstarter data · deterministic calculations · current TTRPG dataset slice</p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
@@ -74,47 +100,6 @@ export default async function LandingPage() {
 
         <section className="bs-panel flex flex-col gap-6 p-5 md:flex-row md:items-center md:justify-between">
           <div><p className="bs-kicker">Built for clear decisions</p><h2 className="bs-title mt-2 text-3xl font-semibold">No black-box score required.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Backer Sonar starts with source data, explicit filters, reproducible calculations, and visible provenance. AI may come later, but the evidence comes first.</p></div>
-        </section>
-
-        <section className="grid gap-6">
-          <div>
-            <p className="bs-kicker">Pricing</p>
-            <h2 className="bs-title mt-2 text-3xl font-semibold">One plan, no surprises.</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Start with a {TRIAL_DAYS}-day free trial, no credit card required. Upgrade whenever you want full,
-              unlimited access.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <article className="bs-panel p-6">
-              <p className="bs-kicker">Free trial</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">$0 <span className="text-base font-normal text-slate-500">for {TRIAL_DAYS} days</span></p>
-              <ul className="mt-4 grid gap-2 text-sm leading-6 text-slate-600">
-                <li>Full Dashboard and Reporting access during the trial</li>
-                <li>Up to {trialEntitlements.saveLimits.research} saved research views</li>
-                <li>Up to {trialEntitlements.saveLimits.campaign} saved campaigns</li>
-                <li>Up to {trialEntitlements.saveLimits.comparison} saved comparisons</li>
-                <li>Compare up to {trialEntitlements.compareSelectionLimit} campaigns at once</li>
-                <li className="text-slate-400">AI Co-Pilot not included</li>
-                <li className="text-slate-400">After {TRIAL_DAYS} days, research surfaces pause until you upgrade &mdash; saved work stays visible</li>
-              </ul>
-              <Link href="/account" className="bs-button-secondary mt-6 inline-flex">Start free trial</Link>
-            </article>
-            <article className="bs-panel border-2 border-sky-400 p-6">
-              <p className="bs-kicker">Paid</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">${PAID_PRICE_USD} <span className="text-base font-normal text-slate-500">/ month</span></p>
-              <ul className="mt-4 grid gap-2 text-sm leading-6 text-slate-600">
-                <li>Full Dashboard and Reporting access, always</li>
-                <li>Unlimited saved research views</li>
-                <li>Unlimited saved campaigns</li>
-                <li>Unlimited saved comparisons</li>
-                <li>Compare up to {paidEntitlements.compareSelectionLimit} campaigns at once</li>
-                <li className="font-medium text-slate-900">AI Co-Pilot included</li>
-                <li className="text-slate-400">Cancel anytime &mdash; access continues through the period you already paid for, no refund for the remainder</li>
-              </ul>
-              <Link href="/account" className="bs-button-primary mt-6 inline-flex">Upgrade to Paid</Link>
-            </article>
-          </div>
         </section>
       </div>
       <script

@@ -10,7 +10,7 @@ import { getCurrentUser, getUserEntitlements } from '@/lib/auth'
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-S888QYSB36'
 
 export const metadata = {
-  metadataBase: new URL('https://backer-sonar.local'),
+  metadataBase: new URL(process.env.APP_URL ?? 'https://www.backersonar.com'),
   title: 'Backer Sonar',
   description:
     'Historical Kickstarter research for evidence-based product investigation.',
