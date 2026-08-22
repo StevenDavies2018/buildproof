@@ -10,7 +10,9 @@ import { getCurrentUser, getUserEntitlements } from '@/lib/auth'
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-S888QYSB36'
 
 export const metadata = {
-  metadataBase: new URL(process.env.APP_URL ?? 'https://www.backersonar.com'),
+  // `||`, not `??` — APP_URL exists in Vercel but can be set to an empty
+  // string rather than being unset, and `new URL('')` throws ERR_INVALID_URL.
+  metadataBase: new URL(process.env.APP_URL || 'https://www.backersonar.com'),
   title: 'Backer Sonar',
   description:
     'Historical Kickstarter research for evidence-based product investigation.',
