@@ -2,10 +2,8 @@ import './globals.css'
 import { Suspense } from 'react'
 import Script from 'next/script'
 import localFont from 'next/font/local'
-import AppNavbar from '@/components/app-navbar'
-import OnboardingProvider from '@/components/onboarding-provider'
+import AuthChrome from '@/components/auth-chrome'
 import SiteFooter from '@/components/site-footer'
-import { getCurrentUser, getUserEntitlements } from '@/lib/auth'
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-S888QYSB36'
 
@@ -13,9 +11,15 @@ export const metadata = {
   // `||`, not `??` — APP_URL exists in Vercel but can be set to an empty
   // string rather than being unset, and `new URL('')` throws ERR_INVALID_URL.
   metadataBase: new URL(process.env.APP_URL || 'https://www.backersonar.com'),
-  title: 'Backer Sonar',
+  title: {
+    default: 'Backer Sonar',
+    template: '%s | Backer Sonar',
+  },
   description:
     'Historical Kickstarter research for evidence-based product investigation.',
+  alternates: {
+    canonical: '/',
+  },
 }
 
 const firaSans = localFont({
@@ -40,13 +44,11 @@ const firaCode = localFont({
   ],
 })
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const user = await getCurrentUser()
-  const showAiCopilot = Boolean(user && user.aiCopilotEnabled && getUserEntitlements(user).canUseAiCopilot)
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <body className={`${firaSans.variable} ${firaCode.variable} font-sans`}>
@@ -81,10 +83,7 @@ export default async function RootLayout({
           }}
         />
         <Suspense fallback={null}>
-          <AppNavbar user={user} showAiCopilot={showAiCopilot} />
-        </Suspense>
-        <Suspense fallback={null}>
-          <OnboardingProvider user={user} />
+          <AuthChrome />
         </Suspense>
         {children}
         <SiteFooter />

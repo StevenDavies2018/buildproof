@@ -1,6 +1,13 @@
+import type { Metadata } from 'next'
 import { PolicyPage } from '@/components/policy-page'
 
 export const dynamic = 'force-static'
+
+export const metadata: Metadata = {
+  title: 'Legal Disclaimer',
+  description: "Important limitations and disclaimers about Backer Sonar's Kickstarter research data and analysis.",
+  alternates: { canonical: '/legal-disclaimer' },
+}
 
 export default function LegalDisclaimerPage() {
   return (

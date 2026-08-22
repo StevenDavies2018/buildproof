@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PersistedViewLink } from '@/components/persisted-view-link'
 import ThemeToggle from '@/components/theme-toggle'
@@ -16,6 +17,12 @@ import {
 } from './actions'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Sign In or Create an Account',
+  description: 'Sign in or create a Backer Sonar account to save research views, campaigns, and comparisons.',
+  alternates: { canonical: '/account' },
+}
 
 export default async function AccountPage({
   searchParams,

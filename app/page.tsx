@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getDashboardOverview } from '@/lib/dashboard'
 import { getUserEntitlements } from '@/lib/auth'
@@ -5,7 +6,18 @@ import { getUserEntitlements } from '@/lib/auth'
 const TRIAL_DAYS = 7
 const PAID_PRICE_USD = 29
 
-export const dynamic = 'force-dynamic'
+// Was force-dynamic — this page has no per-request personalization, so that
+// only bought cold-start TTFB on every hit (and made client-side navigation
+// here noticeably slow, since Next falls back to a full page load when a
+// prefetch to a dynamic route gets superseded). ISR keeps the dataset stats
+// reasonably fresh without paying the dynamic-render cost on every request.
+export const revalidate = 300
+
+export const metadata: Metadata = {
+  description:
+    `Historical Kickstarter research for evidence-based product investigation. ${TRIAL_DAYS}-day free trial, then $${PAID_PRICE_USD}/month.`,
+  alternates: { canonical: '/' },
+}
 
 function formatInteger(value: number) {
   return new Intl.NumberFormat('en-US').format(value)
@@ -49,7 +61,7 @@ export default async function LandingPage() {
                 <Link href="/account" className="inline-flex items-center rounded-full border border-white/40 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">Create an account</Link>
                 <Link href="/account" className="inline-flex items-center rounded-full px-5 py-3 text-sm font-semibold text-sky-100 transition hover:bg-white/10">Sign in</Link>
               </div>
-              <p className="mt-4 text-xs text-slate-300">Currently focused on the TTRPG dataset, with more categories planned.</p>
+              <p className="mt-4 text-xs text-slate-300">Backed by the full Kickstarter dataset, with curated research workflows currently focused on TTRPG.</p>
             </div>
             <div className="rounded-[2rem] border border-white/25 bg-slate-950/30 p-4 backdrop-blur">
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-200">Pricing</p>
@@ -60,7 +72,7 @@ export default async function LandingPage() {
                     <span className="font-mono text-lg font-semibold text-white">$0 <span className="text-xs font-normal text-slate-300">/ {TRIAL_DAYS}d</span></span>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-300">
-                    Full research access, up to {trialEntitlements.saveLimits.research} saved views, compare {trialEntitlements.compareSelectionLimit}. No AI Co-Pilot.
+                    Full research access, up to {trialEntitlements.saveLimits.research} saved views, compare up to {trialEntitlements.compareSelectionLimit}. No AI Co-Pilot.
                   </p>
                   <Link href="/account" className="mt-2 inline-flex items-center rounded-full border border-white/40 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10">Start free trial</Link>
                 </div>
@@ -70,7 +82,7 @@ export default async function LandingPage() {
                     <span className="font-mono text-lg font-semibold text-white">${PAID_PRICE_USD} <span className="text-xs font-normal text-slate-300">/ mo</span></span>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-300">
-                    Unlimited saves, compare {paidEntitlements.compareSelectionLimit}, AI Co-Pilot included. Cancel anytime.
+                    Unlimited saves, compare up to {paidEntitlements.compareSelectionLimit}, AI Co-Pilot included. Cancel anytime.
                   </p>
                   <Link href="/account" className="mt-2 inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-sky-100">Upgrade to Paid</Link>
                 </div>
@@ -80,7 +92,7 @@ export default async function LandingPage() {
         </section>
 
         <section className="bs-panel p-5">
-          <p className="bs-kicker">TTRPG market snapshot</p>
+          <p className="bs-kicker">TTRPG market snapshot example</p>
           <div className="mt-3 grid gap-3 md:grid-cols-4">
             {metrics.map(([label, value, text]) => (
               <div key={label} className="rounded-2xl border border-bs-border bg-[color:var(--bs-field-bg)] p-3">
@@ -89,7 +101,7 @@ export default async function LandingPage() {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-[11px] text-slate-500">Source-linked Kickstarter data · deterministic calculations · current TTRPG dataset slice</p>
+          <p className="mt-3 text-[11px] text-slate-500">Source-linked Kickstarter data · deterministic calculations · full dataset, all categories</p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
