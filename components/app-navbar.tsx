@@ -74,7 +74,14 @@ export default function AppNavbar({ user, showAiCopilot = false }: { user: AuthU
     return () => window.removeEventListener(ONBOARDING_STATUS_CHANGED_EVENT, handleStatusChanged)
   }, [user])
 
-  if (pathname === '/' || pathname?.startsWith('/account')) return null
+  if (
+    pathname === '/' ||
+    pathname?.startsWith('/account') ||
+    pathname?.startsWith('/blog') ||
+    pathname?.startsWith('/faq')
+  ) {
+    return null
+  }
 
   function openHelpWalkthrough() {
     void fetch('/api/analytics', {
