@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { type DashboardFilters, getDashboardOverview } from '@/lib/dashboard'
+import { getCurrentUser, isTrialExpired } from '@/lib/auth'
 
 const FILTER_KEYS: Array<keyof DashboardFilters> = [
   'membershipStatus',
@@ -33,6 +34,15 @@ function readFilters(value: unknown) {
 }
 
 export async function POST(request: Request) {
+  // This route runs the same query the /dashboard and /reports pages gate
+  // behind requireActivePlan() — without an equivalent check here, it was a
+  // direct, unauthenticated path to the paid research feature (and its most
+  // expensive query) for anyone who found the endpoint.
+  const user = await getCurrentUser()
+  if (!user || isTrialExpired(user)) {
+    return NextResponse.json({ error: 'Sign in with an active trial or paid plan is required.' }, { status: 401 })
+  }
+
   let body: unknown
 
   try {

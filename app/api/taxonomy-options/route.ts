@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { type DashboardFilters, getDashboardOverview } from '@/lib/dashboard'
+import { getCurrentUser, isTrialExpired } from '@/lib/auth'
 
 const FILTER_KEYS: Array<keyof DashboardFilters> = [
   'search',
@@ -20,6 +21,14 @@ const FILTER_KEYS: Array<keyof DashboardFilters> = [
 ]
 
 export async function GET(request: Request) {
+  // Same rationale as /api/research/analyze: this triggers the same query
+  // /dashboard and /reports gate behind requireActivePlan(), and had no
+  // equivalent check of its own.
+  const user = await getCurrentUser()
+  if (!user || isTrialExpired(user)) {
+    return NextResponse.json({ error: 'Sign in with an active trial or paid plan is required.' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const filters = FILTER_KEYS.reduce<DashboardFilters>((result, key) => {
     const value = searchParams.get(key)
