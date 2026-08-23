@@ -2,36 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getDashboardOverview } from '@/lib/dashboard'
 import { getUserEntitlements } from '@/lib/auth'
-
-const TRIAL_DAYS = 7
-const PAID_PRICE_USD = 29
-
-const FAQ_ITEMS = [
-  {
-    question: 'What is Backer Sonar?',
-    answer:
-      'A research workspace for evaluating historical Kickstarter campaign data before deciding what to launch. It replaces guesswork with source-linked campaign history, explicit filters, and reproducible calculations.',
-  },
-  {
-    question: 'What data does Backer Sonar use?',
-    answer:
-      'The full Kickstarter dataset (Web Robots Kickstarter Dataset), with money values normalized to USD and campaigns classified into a product taxonomy beyond Kickstarter’s own category labels. Curated research workflows currently focus on TTRPG, with more categories planned.',
-  },
-  {
-    question: 'How much does it cost?',
-    answer: `$${PAID_PRICE_USD}/month after a ${TRIAL_DAYS}-day free trial, no credit card required to start.`,
-  },
-  {
-    question: 'Is the analysis AI-generated?',
-    answer:
-      'No. Core research, reporting, and comparisons are deterministic calculations from source data — the same inputs always produce the same numbers. An optional AI Co-Pilot (included with Paid) can narrate saved research in plain language, but it never invents numbers or predicts campaign outcomes.',
-  },
-  {
-    question: 'Can I cancel anytime?',
-    answer:
-      'Yes. Cancelling keeps full access through the period you already paid for, with no refund for the remaining time.',
-  },
-]
+import { PAID_PRICE_USD, TRIAL_DAYS } from '@/lib/faq'
 
 // Was force-dynamic — this page has no per-request personalization, so that
 // only bought cold-start TTFB on every hit (and made client-side navigation
@@ -205,17 +176,15 @@ export default async function LandingPage() {
           </p>
         </section>
 
-        <section className="bs-panel p-5">
-          <p className="bs-kicker">FAQ</p>
-          <h2 className="bs-title mt-2 text-3xl font-semibold">Common questions.</h2>
-          <div className="mt-4 grid gap-5">
-            {FAQ_ITEMS.map((item) => (
-              <div key={item.question}>
-                <h3 className="text-sm font-semibold text-slate-900">{item.question}</h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">{item.answer}</p>
-              </div>
-            ))}
+        <section className="bs-panel flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="bs-kicker">FAQ</p>
+            <h2 className="bs-title mt-2 text-2xl font-semibold">Have a question?</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Pricing, data sources, AI Co-Pilot, and cancellation &mdash; answered on one page.
+            </p>
           </div>
+          <Link href="/faq" className="bs-button-secondary shrink-0">Read the FAQ</Link>
         </section>
       </div>
       <script
@@ -248,23 +217,6 @@ export default async function LandingPage() {
               availability: 'https://schema.org/InStock',
               category: 'Subscription',
             },
-          }),
-        }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'FAQPage',
-            mainEntity: FAQ_ITEMS.map((item) => ({
-              '@type': 'Question',
-              name: item.question,
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: item.answer,
-              },
-            })),
           }),
         }}
       />

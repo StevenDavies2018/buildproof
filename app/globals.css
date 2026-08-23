@@ -411,3 +411,70 @@ html[data-theme='dark'] .bs-metric-card-accent .text-amber-950,
 html[data-theme='dark'] .bs-metric-card-accent .text-amber-900\/80 {
   color: #f8fafc !important;
 }
+
+.bs-article {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--bs-text-body);
+}
+
+.bs-article h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--bs-text-strong);
+}
+
+.bs-article h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--bs-text-strong);
+}
+
+.bs-article p {
+  margin-top: 1rem;
+}
+
+.bs-article ul,
+.bs-article ol {
+  margin-top: 1rem;
+  padding-left: 1.5rem;
+}
+
+.bs-article li {
+  margin-top: 0.375rem;
+}
+
+.bs-article ul li {
+  list-style: disc;
+}
+
+.bs-article a {
+  color: var(--bs-text-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 500;
+}
+
+.bs-article table {
+  margin-top: 1.25rem;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.bs-article th,
+.bs-article td {
+  border: 1px solid var(--bs-border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.bs-article th {
+  background: var(--bs-field-bg);
+  font-weight: 600;
+  color: var(--bs-text-strong);
+}

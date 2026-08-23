@@ -12,7 +12,9 @@ Backer Sonar is a research workspace for people deciding what to launch on Kicks
 
 ## Key pages
 
-- [Homepage](https://www.backersonar.com/): product overview, pricing, FAQ
+- [Homepage](https://www.backersonar.com/): product overview, pricing
+- [FAQ](https://www.backersonar.com/faq): pricing, data source, and AI Co-Pilot questions answered
+- [Blog](https://www.backersonar.com/blog): data-driven articles from the Kickstarter dataset (goal size, campaign duration, category breakdowns)
 - [Terms of Use](https://www.backersonar.com/terms)
 - [Privacy Policy](https://www.backersonar.com/privacy)
 - [Legal Disclaimer](https://www.backersonar.com/legal-disclaimer): data limitations and scope of use
