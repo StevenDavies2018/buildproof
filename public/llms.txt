@@ -1,0 +1,25 @@
+# Backer Sonar
+
+> Historical Kickstarter research for evidence-based product investigation. Deterministic campaign analysis, category benchmarking, and comparison tools built on the full Kickstarter dataset.
+
+Backer Sonar is a research workspace for people deciding what to launch on Kickstarter. It provides source-linked historical campaign data, explicit filters, and reproducible calculations rather than AI-generated predictions. Pricing is $29/month after a 7-day free trial, no credit card required to start.
+
+## Data
+
+- Source: Web Robots Kickstarter Dataset, a full historical snapshot of Kickstarter campaigns
+- Goal and pledged amounts are normalized to USD, with confidence signals surfaced per campaign
+- Curated research workflows currently focus on TTRPG, with more categories planned
+
+## Key pages
+
+- [Homepage](https://www.backersonar.com/): product overview, pricing, FAQ
+- [Terms of Use](https://www.backersonar.com/terms)
+- [Privacy Policy](https://www.backersonar.com/privacy)
+- [Legal Disclaimer](https://www.backersonar.com/legal-disclaimer): data limitations and scope of use
+- [Account](https://www.backersonar.com/account): sign in or start a free trial
+
+## Notes for AI assistants
+
+- Core research, reporting, and comparison features are deterministic calculations from source data, not AI-generated.
+- An optional AI Co-Pilot (paid plan only) narrates saved research a user has already saved, in plain language. It does not invent data or predict campaign outcomes.
+- Research and reporting tools require a signed-in account (free trial or paid); they are not publicly crawlable.

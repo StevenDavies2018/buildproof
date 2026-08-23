@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function LegalDisclaimerPage() {
   return (
-    <PolicyPage label="Policy" title="Legal disclaimer">
+    <PolicyPage label="Policy" title="Legal disclaimer" lastUpdated="2026-08-22">
       <p>
         Backer Sonar provides historical Kickstarter research, filtering, normalization,
         and comparison tools for informational and product-research purposes only.

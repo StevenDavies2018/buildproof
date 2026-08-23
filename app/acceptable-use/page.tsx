@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 }
 
 export default function AcceptableUsePage() {
-  return <PolicyPage label="Policy" title="Acceptable use"><p>Use Backer Sonar lawfully and respectfully. Do not probe, overload, scrape, or interfere with the service or its supporting infrastructure.</p><p>Do not use the product to misrepresent research, target people, or make decisions that require professional financial, legal, or regulatory advice.</p></PolicyPage>
+  return <PolicyPage label="Policy" title="Acceptable use" lastUpdated="2026-08-22"><p>Use Backer Sonar lawfully and respectfully. Do not probe, overload, scrape, or interfere with the service or its supporting infrastructure.</p><p>Do not use the product to misrepresent research, target people, or make decisions that require professional financial, legal, or regulatory advice.</p></PolicyPage>
 }
