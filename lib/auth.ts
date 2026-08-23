@@ -115,6 +115,11 @@ export async function createAccount(
   if (!consent.acknowledgedDisclaimer) throw new Error('Legal disclaimer acknowledgement is required')
 
   const sql = getSql()
+  // trial_ends_at is set explicitly here rather than relying on the column
+  // default — that default only exists in the CREATE TABLE clause, which
+  // never runs against an already-existing table, so a column added later
+  // via ALTER TABLE ADD COLUMN has no default and would otherwise insert
+  // NULL, making every new account look like an already-expired trial.
   const [user] = await sql<{ id: number; email: string; displayName: string; role: 'user' | 'admin' }[]>`
     INSERT INTO app_users (
       email,
@@ -122,7 +127,8 @@ export async function createAccount(
       password_hash,
       terms_accepted_at,
       privacy_accepted_at,
-      legal_disclaimer_acknowledged_at
+      legal_disclaimer_acknowledged_at,
+      trial_ends_at
     )
     VALUES (
       ${normalizedEmail},
@@ -130,7 +136,8 @@ export async function createAccount(
       ${hashPassword(password)},
       CURRENT_TIMESTAMP,
       CURRENT_TIMESTAMP,
-      CURRENT_TIMESTAMP
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP + INTERVAL '7 days'
     )
     RETURNING id, email, display_name AS "displayName", role
   `
@@ -202,7 +209,8 @@ export async function signInWithGoogle(
           email_verified_at,
           terms_accepted_at,
           privacy_accepted_at,
-          legal_disclaimer_acknowledged_at
+          legal_disclaimer_acknowledged_at,
+          trial_ends_at
         )
         VALUES (
           ${normalizedEmail},
@@ -212,7 +220,8 @@ export async function signInWithGoogle(
           CURRENT_TIMESTAMP,
           ${registrationConsent?.termsAcceptedAt ?? null},
           ${registrationConsent?.privacyAcceptedAt ?? null},
-          ${registrationConsent?.legalDisclaimerAcknowledgedAt ?? null}
+          ${registrationConsent?.legalDisclaimerAcknowledgedAt ?? null},
+          CURRENT_TIMESTAMP + INTERVAL '7 days'
         )
         RETURNING id, email, display_name AS "displayName", role, account_type AS "accountType", trial_ends_at AS "trialEndsAt"
       `
