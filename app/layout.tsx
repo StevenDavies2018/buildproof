@@ -36,6 +36,11 @@ const firaSans = localFont({
 const firaCode = localFont({
   variable: '--font-mono',
   display: 'swap',
+  // FiraCode is used for display headings (brand voice), not body copy —
+  // preloading all 4 weights on every route added ~90KB to the render-
+  // blocking critical path sitewide. `display: 'swap'` already means no
+  // flash-of-invisible-text, just a later (non-blocking) font swap.
+  preload: false,
   src: [
     { path: './fonts/FiraCode-400.woff2', weight: '400', style: 'normal' },
     { path: './fonts/FiraCode-500.woff2', weight: '500', style: 'normal' },
