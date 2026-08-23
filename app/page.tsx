@@ -9,6 +9,17 @@ import { PAID_PRICE_USD, TRIAL_DAYS } from '@/lib/faq'
 // here noticeably slow, since Next falls back to a full page load when a
 // prefetch to a dynamic route gets superseded). ISR keeps the dataset stats
 // reasonably fresh without paying the dynamic-render cost on every request.
+//
+// `revalidate` alone isn't enough: the root layout renders AuthChrome, which
+// reads cookies() to resolve the logged-in user for the navbar. Any dynamic
+// API used anywhere in a route's tree (even a shared layout, even inside a
+// Suspense boundary) opts the whole route into fully dynamic SSR unless the
+// route itself sets `force-static` — otherwise `revalidate` is silently
+// never honored and this page's (fairly expensive) dashboard query runs on
+// every single request instead of ~once per 300s. `force-static` makes
+// cookies()/headers() no-op for this route specifically, which is safe here
+// since the page reads neither.
+export const dynamic = 'force-static'
 export const revalidate = 300
 
 export const metadata: Metadata = {
