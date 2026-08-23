@@ -1,11 +1,44 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { recordAnalyticsEvent } from '@/lib/analytics'
 import { getSql, hasDatabaseConfig } from '@/lib/db'
 import { Resend } from 'resend'
 
 const SESSION_COOKIE = 'backer-sonar-session'
 const SESSION_DAYS = 30
+
+async function getClientIp() {
+  const headerList = await headers()
+  return headerList.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+}
+
+// Sliding-window rate limiter backed by Postgres rather than a new Redis/KV
+// dependency — fine at this traffic level; an indexed count-then-insert on a
+// small table is cheap next to the query this app already runs on every
+// dashboard/report view. Fails open (returns true) if the DB isn't
+// configured, matching how the rest of auth.ts degrades without a database.
+async function checkRateLimit(bucket: string, maxAttempts: number, windowMinutes: number) {
+  if (!hasDatabaseConfig()) return true
+  const sql = getSql()
+  try {
+    const [{ count }] = await sql<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count
+      FROM auth_rate_limit_events
+      WHERE bucket = ${bucket}
+        AND occurred_at > CURRENT_TIMESTAMP - (${windowMinutes} || ' minutes')::interval
+    `
+    if (count >= maxAttempts) return false
+    await sql`INSERT INTO auth_rate_limit_events (bucket) VALUES (${bucket})`
+    // Opportunistic cleanup instead of on every call — keeps the table small
+    // without an extra DELETE round-trip on the hot path.
+    if (Math.random() < 0.05) {
+      await sql`DELETE FROM auth_rate_limit_events WHERE occurred_at < CURRENT_TIMESTAMP - INTERVAL '1 day'`
+    }
+    return true
+  } finally {
+    await sql.end()
+  }
+}
 
 export type AuthUser = {
   id: number
@@ -114,6 +147,11 @@ export async function createAccount(
   if (!consent.acceptedTerms) throw new Error('Terms consent is required')
   if (!consent.acknowledgedDisclaimer) throw new Error('Legal disclaimer acknowledgement is required')
 
+  const ip = await getClientIp()
+  if (!(await checkRateLimit(`register-ip:${ip}`, 5, 60))) {
+    throw new Error('Too many signup attempts. Please try again later.')
+  }
+
   const sql = getSql()
   // trial_ends_at is set explicitly here rather than relying on the column
   // default — that default only exists in the CREATE TABLE clause, which
@@ -152,11 +190,24 @@ export async function createAccount(
 
 export async function signIn(email: string, password: string) {
   if (!hasDatabaseConfig()) throw new Error('Database is not configured')
+
+  const normalizedEmail = normalizeEmail(email)
+  const ip = await getClientIp()
+  // Two buckets: a tight per-account limit (stops brute-forcing one email)
+  // and a looser per-IP limit (stops spraying many emails from one source).
+  const [accountOk, ipOk] = await Promise.all([
+    checkRateLimit(`login-account:${normalizedEmail}`, 8, 15),
+    checkRateLimit(`login-ip:${ip}`, 25, 15),
+  ])
+  if (!accountOk || !ipOk) {
+    throw new Error('Too many sign-in attempts. Please try again in a few minutes.')
+  }
+
   const sql = getSql()
   const [user] = await sql<{ id: number; email: string; displayName: string; passwordHash: string; role: 'user' | 'admin'; emailVerifiedAt: string | null; accountType: 'free' | 'paid'; trialEndsAt: string | null }[]>`
     SELECT id, email, display_name AS "displayName", password_hash AS "passwordHash", role, email_verified_at AS "emailVerifiedAt", account_type AS "accountType", trial_ends_at AS "trialEndsAt"
     FROM app_users
-    WHERE email = ${normalizeEmail(email)}
+    WHERE email = ${normalizedEmail}
     LIMIT 1
   `
   if (!user || !verifyPassword(password, user.passwordHash)) {
