@@ -1,7 +1,7 @@
 ---
-name: "Your name"
+name: "Steven Davies"
 title: "Founder, Backer Sonar"
-location: "Barrie, Ontario, Canada"
+location: "Ontario, Canada"
 ---
 
-Add your founder bio here. Edit this file — `content/founder.md` — and redeploy to update the About page. This paragraph and everything below it is rendered as the bio; the fields above (name, title, location) populate the heading.
+As an avid Kickstarter supporter I have found that I have contemplated creating my own campaign but I have found that the information I need before I dive in was not on one place. Sure you can go to the site itself but it wasn't what I was looking for to help me decide if what I want to do was even valuable given the number out there or how successful a project would be so I started with finding the data.  As a web developer I had the tools necessary to build out a platform and well here it is.  
