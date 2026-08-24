@@ -59,7 +59,7 @@ export default async function BlogPostPage({
             '@type': 'Article',
             headline: post.meta.title,
             description: post.meta.description,
-            image: ['https://www.backersonar.com/opengraph-image.png'],
+            image: ['https://www.backersonar.com/opengraph-image'],
             datePublished: post.meta.publishedAt,
             author: { '@type': 'Organization', name: 'Backer Sonar' },
             publisher: {
