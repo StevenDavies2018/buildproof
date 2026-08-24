@@ -18,6 +18,7 @@ import {
   type SavedResearchItem,
 } from '@/lib/saved-research'
 import { postAnalyticsEvent } from '@/lib/client-analytics'
+import { Tooltip } from '@/components/tooltip'
 
 const SNAPSHOT_VERSION = '2026-08-12'
 
@@ -66,9 +67,16 @@ function SaveToggle({
   const groupCount = items.filter((existing) => existing.type === item.type).length
   const limit = effectiveLimits[item.type]
   const atLimit = !isSaved && limit !== null && groupCount >= limit
+  const noun = item.type === 'research' ? 'research views' : item.type === 'campaign' ? 'campaigns' : 'comparisons'
+  const tooltipLabel = atLimit
+    ? `You've reached your saved ${noun} limit (${limit}). Upgrade to Paid for unlimited saves.`
+    : isSaved
+      ? `Saved — click to remove this from your saved research.`
+      : `Save this to revisit later from the saved research panel, or brief it in AI Co-Pilot.`
 
   return (
     <div className="flex flex-col gap-2">
+      <Tooltip label={tooltipLabel}>
       <button
         type="button"
         className={isSaved ? 'bs-button-primary' : className}
@@ -100,6 +108,7 @@ function SaveToggle({
       >
         {atLimit ? `Limit reached (${limit})` : isSaved ? savedLabel : saveLabel}
       </button>
+      </Tooltip>
       {error ? <p className="text-xs leading-5 text-amber-700">{error}</p> : null}
     </div>
   )

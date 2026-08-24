@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { generateBrief } from './actions'
+import { Tooltip } from '@/components/tooltip'
 
 const PAGE_MARGIN = 56
 const LINE_HEIGHT = 16
@@ -126,14 +127,16 @@ function ItemCard({ item }: { item: WorkspaceItem }) {
             Open the saved evidence
           </a>
         </div>
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={brief.status === 'loading'}
-          className="bs-button-secondary shrink-0"
-        >
-          {brief.status === 'loading' ? 'Generating…' : brief.status === 'done' ? 'Regenerate brief' : 'Generate brief'}
-        </button>
+        <Tooltip label="Narrates this saved research in plain language. Reads only what you've saved, never invents numbers or predicts outcomes.">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={brief.status === 'loading'}
+            className="bs-button-secondary shrink-0"
+          >
+            {brief.status === 'loading' ? 'Generating…' : brief.status === 'done' ? 'Regenerate brief' : 'Generate brief'}
+          </button>
+        </Tooltip>
       </div>
 
       {brief.status === 'error' ? (

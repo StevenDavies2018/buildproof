@@ -312,6 +312,21 @@ body {
     @apply rounded-full px-3 py-1 text-xs font-semibold;
   }
 
+  .bs-tooltip-wrap {
+    @apply relative inline-flex;
+  }
+
+  .bs-tooltip-bubble {
+    @apply pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 w-max max-w-[240px] -translate-x-1/2 translate-y-1 rounded-lg px-2.5 py-1.5 text-xs leading-4 opacity-0 shadow-lg transition;
+    background: var(--bs-text-strong);
+    color: var(--bs-background);
+  }
+
+  .bs-tooltip-wrap:hover .bs-tooltip-bubble,
+  .bs-tooltip-wrap:focus-within .bs-tooltip-bubble {
+    @apply translate-y-0 opacity-100;
+  }
+
   .bs-onboarding-shell {
     @apply fixed inset-0 z-[100] flex items-center justify-center p-6;
   }
