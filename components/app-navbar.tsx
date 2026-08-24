@@ -78,7 +78,8 @@ export default function AppNavbar({ user, showAiCopilot = false }: { user: AuthU
     pathname === '/' ||
     pathname?.startsWith('/account') ||
     pathname?.startsWith('/blog') ||
-    pathname?.startsWith('/faq')
+    pathname?.startsWith('/faq') ||
+    pathname?.startsWith('/about')
   ) {
     return null
   }

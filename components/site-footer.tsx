@@ -11,6 +11,7 @@ export default function SiteFooter() {
         <nav aria-label="Legal and support links" className="flex flex-wrap gap-x-5 gap-y-2">
           <Link href="/blog" className="hover:text-[color:var(--bs-text-strong)]">Blog</Link>
           <Link href="/faq" className="hover:text-[color:var(--bs-text-strong)]">FAQ</Link>
+          <Link href="/about" className="hover:text-[color:var(--bs-text-strong)]">About</Link>
           <Link href="/privacy" className="hover:text-[color:var(--bs-text-strong)]">Privacy</Link>
           <Link href="/terms" className="hover:text-[color:var(--bs-text-strong)]">Terms</Link>
           <Link href="/cookies" className="hover:text-[color:var(--bs-text-strong)]">Cookies</Link>

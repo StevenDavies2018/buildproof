@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   '/',
   '/faq',
   '/blog',
+  '/about',
   '/terms',
   '/privacy',
   '/cookies',
