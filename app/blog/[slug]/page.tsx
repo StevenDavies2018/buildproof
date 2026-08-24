@@ -59,10 +59,23 @@ export default async function BlogPostPage({
             '@type': 'Article',
             headline: post.meta.title,
             description: post.meta.description,
+            image: ['https://www.backersonar.com/opengraph-image.png'],
             datePublished: post.meta.publishedAt,
             author: { '@type': 'Organization', name: 'Backer Sonar' },
-            publisher: { '@type': 'Organization', name: 'Backer Sonar' },
-            mainEntityOfPage: `https://www.backersonar.com/blog/${slug}`,
+            publisher: {
+              '@type': 'Organization',
+              name: 'Backer Sonar',
+              logo: {
+                '@type': 'ImageObject',
+                url: 'https://www.backersonar.com/brand-icon.png',
+                width: 240,
+                height: 240,
+              },
+            },
+            mainEntityOfPage: {
+              '@type': 'WebPage',
+              '@id': `https://www.backersonar.com/blog/${slug}`,
+            },
           }),
         }}
       />
