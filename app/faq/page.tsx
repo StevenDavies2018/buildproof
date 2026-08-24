@@ -33,7 +33,7 @@ export default function FaqPage() {
               <h3 className="text-sm font-semibold text-slate-900">Source data</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Campaign history comes from the Web Robots Kickstarter Dataset, a full historical snapshot of
-                Kickstarter campaigns &mdash; not a hand-picked sample.
+                191,384 Kickstarter campaigns &mdash; not a hand-picked sample.
               </p>
             </div>
             <div>
