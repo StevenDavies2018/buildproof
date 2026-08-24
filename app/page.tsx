@@ -66,9 +66,17 @@ export default async function LandingPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-200">Backer Sonar</p>
               <h1 className="mt-4 max-w-4xl font-mono text-4xl font-semibold leading-tight tracking-tight md:text-6xl">Find the signal before you build.</h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200 md:text-lg">A practical research workspace for people deciding what to launch on Kickstarter. Explore real campaign history, compare same-category projects, and separate useful evidence from noise.</p>
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <Link href="/account" className="inline-flex items-center rounded-full border border-white/40 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">Create an account</Link>
                 <Link href="/account" className="inline-flex items-center rounded-full px-5 py-3 text-sm font-semibold text-sky-100 transition hover:bg-white/10">Sign in</Link>
+                <a href="https://www.producthunt.com/products/backer-sonar?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-backer-sonar" target="_blank" rel="noopener noreferrer">
+                  <img
+                    alt="Backer Sonar - Real Kickstarter data for smarter launch decisions | Product Hunt"
+                    width={250}
+                    height={54}
+                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1230988&theme=neutral&t=1787586470770"
+                  />
+                </a>
               </div>
               <p className="mt-4 text-xs text-slate-300">Backed by the full Kickstarter dataset, with curated research workflows currently focused on TTRPG.</p>
             </div>

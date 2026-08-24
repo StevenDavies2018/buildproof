@@ -6,7 +6,7 @@ const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.google-analytics.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https://images.ctfassets.net https://*.google-analytics.com https://www.googletagmanager.com",
+  "img-src 'self' data: https://images.ctfassets.net https://*.google-analytics.com https://www.googletagmanager.com https://api.producthunt.com",
   "font-src 'self' data:",
   "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
   "frame-ancestors 'none'",
