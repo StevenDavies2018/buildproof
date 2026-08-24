@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { generateBrief } from './actions'
 
@@ -166,8 +167,14 @@ export function CoPilotWorkspace({ items }: { items: WorkspaceItem[] }) {
   if (!items.length) {
     return (
       <div className="bs-panel-subtle text-sm leading-6 text-slate-600">
-        Nothing saved yet. Save a research view, campaign, or comparison from Dashboard or Reporting, then come back
-        here to brief it.
+        <p>
+          Nothing saved yet. AI Co-Pilot only interprets research you&rsquo;ve explicitly saved &mdash; it has
+          nothing to work with until you save a research view, campaign, or comparison first.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link href="/reports" className="bs-button-secondary">Save a view from Reporting</Link>
+          <Link href="/dashboard" className="bs-button-secondary">Save from Dashboard</Link>
+        </div>
       </div>
     )
   }
