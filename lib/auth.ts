@@ -147,6 +147,30 @@ async function notifyAdminOfSignup(email: string, displayName: string, method: '
   }
 }
 
+export async function resendVerificationEmail(email: string) {
+  if (!hasDatabaseConfig()) throw new Error('Database is not configured')
+  const normalizedEmail = normalizeEmail(email)
+  const ip = await getClientIp()
+  if (!(await checkRateLimit(`resend-verify:${normalizedEmail}`, 3, 60))) {
+    throw new Error('Too many resend attempts. Please try again later.')
+  }
+  if (!(await checkRateLimit(`resend-verify-ip:${ip}`, 10, 60))) {
+    throw new Error('Too many resend attempts. Please try again later.')
+  }
+
+  const sql = getSql()
+  const [user] = await sql<{ id: number; email: string; displayName: string; emailVerifiedAt: string | null }[]>`
+    SELECT id, email, display_name AS "displayName", email_verified_at AS "emailVerifiedAt"
+    FROM app_users
+    WHERE email = ${normalizedEmail}
+    LIMIT 1
+  `
+  // Same outcome whether the account doesn't exist or is already verified --
+  // avoids confirming which emails have accounts on this endpoint.
+  if (!user || user.emailVerifiedAt) return
+  await sendVerificationEmail(user.id, user.email, user.displayName)
+}
+
 function sessionExpiry() {
   return new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
 }

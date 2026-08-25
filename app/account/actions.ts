@@ -7,6 +7,7 @@ import {
   createAccount,
   getUserEntitlements,
   requireSignedInUser,
+  resendVerificationEmail,
   setAiCopilotEnabled,
   signIn,
   signOut,
@@ -51,6 +52,15 @@ export async function loginAccount(formData: FormData) {
     redirect(`/account?error=${message(error)}`)
   }
   redirect('/dashboard?account=signed-in')
+}
+
+export async function resendVerificationEmailAction(formData: FormData) {
+  try {
+    await resendVerificationEmail(String(formData.get('email') ?? ''))
+  } catch (error) {
+    redirect(`/account?error=${message(error)}`)
+  }
+  redirect('/account?pending=verification-resent')
 }
 
 export async function logoutAccount() {

@@ -12,6 +12,7 @@ import {
   logoutAccount,
   openBillingPortal,
   registerAccount,
+  resendVerificationEmailAction,
   startUpgradeCheckout,
   syncBillingStatus,
 } from './actions'
@@ -115,8 +116,31 @@ export default async function AccountPage({
             <ThemeToggle className="bs-theme-toggle self-start" />
           </div>
 
-          {error ? <p className="mt-5 min-w-0 break-words rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900">{decodeURIComponent(error)}</p> : null}
-          {pending === 'verification' ? <p className="mt-5 min-w-0 break-words rounded-xl border border-sky-300 bg-sky-50 p-4 text-sm leading-6 text-sky-900">Check your email for a verification link before signing in.</p> : null}
+          {error ? (
+            <div className="mt-5 min-w-0 break-words rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              <p>{decodeURIComponent(error)}</p>
+              {decodeURIComponent(error) === 'Verify your email before signing in' ? (
+                <form action={resendVerificationEmailAction} className="mt-3 flex flex-wrap items-center gap-2">
+                  <input name="email" type="email" required placeholder="you@example.com" className="bs-field w-56 text-sm" />
+                  <button type="submit" className="bs-button-secondary px-3 py-1.5 text-xs">Resend verification email</button>
+                </form>
+              ) : null}
+            </div>
+          ) : null}
+          {pending === 'verification' ? (
+            <div className="mt-5 min-w-0 break-words rounded-xl border border-sky-300 bg-sky-50 p-4 text-sm leading-6 text-sky-900">
+              <p>Check your email for a verification link before signing in.</p>
+              <form action={resendVerificationEmailAction} className="mt-3 flex flex-wrap items-center gap-2">
+                <input name="email" type="email" required placeholder="you@example.com" className="bs-field w-56 text-sm" />
+                <button type="submit" className="bs-button-secondary px-3 py-1.5 text-xs">Resend verification email</button>
+              </form>
+            </div>
+          ) : null}
+          {pending === 'verification-resent' ? (
+            <p className="mt-5 min-w-0 break-words rounded-xl border border-sky-300 bg-sky-50 p-4 text-sm leading-6 text-sky-900">
+              If that email needs verification, a new link is on its way.
+            </p>
+          ) : null}
           {checkout === 'success' ? <p className="mt-5 min-w-0 break-words rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">Payment received. Your plan updates as soon as Stripe confirms the subscription (usually within a few seconds) &mdash; refresh if it still shows Trial.</p> : null}
           {checkout === 'cancelled' ? <p className="mt-5 min-w-0 break-words rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900">Checkout was cancelled. No changes were made to your plan.</p> : null}
           {checkout === 'synced' ? <p className="mt-5 min-w-0 break-words rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">Billing status refreshed from Stripe.</p> : null}
