@@ -77,6 +77,15 @@ export default async function LandingPage() {
                     src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1230988&theme=neutral&t=1787586470770"
                   />
                 </a>
+                <a href="https://smollaunch.com" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src="https://smollaunch.com/badges/featured.svg"
+                    alt="Backer Sonar — Featured on Smol Launch"
+                    loading="lazy"
+                    width={250}
+                    height={60}
+                  />
+                </a>
               </div>
               <p className="mt-4 text-xs text-slate-300">Backed by the full Kickstarter dataset, with curated research workflows currently focused on TTRPG.</p>
             </div>
