@@ -129,6 +129,24 @@ async function sendVerificationEmail(userId: number, email: string, displayName:
   if (result.error) throw new Error('Verification email could not be sent')
 }
 
+// Best-effort — a failed notification shouldn't block a real user's signup,
+// so this only logs on failure rather than throwing.
+async function notifyAdminOfSignup(email: string, displayName: string, method: 'email' | 'google') {
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM || !adminEmail) return
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM,
+      to: adminEmail,
+      subject: 'New Backer Sonar signup',
+      html: `<p>New account created via ${method === 'google' ? 'Google sign-in' : 'email/password'}:</p><p>${displayName} &lt;${email}&gt;</p>`,
+    })
+  } catch (error) {
+    console.error('Signup notification email failed', error)
+  }
+}
+
 function sessionExpiry() {
   return new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
 }
@@ -180,6 +198,7 @@ export async function createAccount(
     RETURNING id, email, display_name AS "displayName", role
   `
   await sendVerificationEmail(user.id, user.email, user.displayName)
+  void notifyAdminOfSignup(user.email, user.displayName, 'email')
   await recordAnalyticsEvent({
     userId: user.id,
     eventName: 'account_created',
@@ -277,6 +296,7 @@ export async function signInWithGoogle(
         RETURNING id, email, display_name AS "displayName", role, account_type AS "accountType", trial_ends_at AS "trialEndsAt"
       `
   await establishSession(user.id)
+  if (!existing) void notifyAdminOfSignup(user.email, user.displayName, 'google')
   await recordAnalyticsEvent({
     userId: user.id,
     eventName: 'sign_in',
