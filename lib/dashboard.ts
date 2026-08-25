@@ -200,6 +200,35 @@ function resolveTrendDirection(trends: DashboardTrendRow[]) {
   return 'steady'
 }
 
+export type DatasetSnapshotInfo = {
+  snapshotVersion: string | null
+  importedAt: string | null
+}
+
+export async function getLatestDatasetSnapshot(): Promise<DatasetSnapshotInfo> {
+  if (!hasDatabaseConfig()) {
+    return { snapshotVersion: null, importedAt: null }
+  }
+
+  const sql = getSql()
+
+  try {
+    const [row] = await sql<DatasetSnapshotInfo[]>`
+      SELECT
+        snapshot_version AS "snapshotVersion",
+        imported_at::text AS "importedAt"
+      FROM dataset_imports
+      ORDER BY imported_at DESC
+      LIMIT 1
+    `
+    return row ?? { snapshotVersion: null, importedAt: null }
+  } catch {
+    return { snapshotVersion: null, importedAt: null }
+  } finally {
+    await sql.end()
+  }
+}
+
 export async function getDashboardOverview(
   inputFilters: DashboardFilters = {},
 ): Promise<DashboardOverview> {

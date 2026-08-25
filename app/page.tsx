@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getDashboardOverview } from '@/lib/dashboard'
+import { getDashboardOverview, getLatestDatasetSnapshot } from '@/lib/dashboard'
 import { getUserEntitlements } from '@/lib/auth'
 import { PAID_PRICE_USD, TRIAL_DAYS } from '@/lib/faq'
 
@@ -40,8 +40,23 @@ function formatCoverage(value: number, total: number) {
   return total ? `${((value / total) * 100).toFixed(1)}%` : 'n/a'
 }
 
+function formatSnapshotDate(value: string | null) {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.valueOf())) return null
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(parsed) + ' UTC'
+}
+
 export default async function LandingPage() {
-  const data = await getDashboardOverview({ cardLimit: '12' })
+  const [data, snapshot] = await Promise.all([
+    getDashboardOverview({ cardLimit: '12' }),
+    getLatestDatasetSnapshot(),
+  ])
+  const snapshotDateLabel = formatSnapshotDate(snapshot.importedAt)
   const trialEntitlements = getUserEntitlements({
     role: 'user',
     accountType: 'free',
@@ -127,7 +142,10 @@ export default async function LandingPage() {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-[11px] text-slate-500">Source-linked Kickstarter data · deterministic calculations · full dataset, all categories</p>
+          <p className="mt-3 text-[11px] text-slate-500">
+            Source-linked Kickstarter data · deterministic calculations · full dataset, all categories
+            {snapshotDateLabel ? <> · Data snapshot: {snapshotDateLabel}</> : null}
+          </p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
