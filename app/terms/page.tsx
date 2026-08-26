@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import { PolicyPage } from '@/components/policy-page'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'Terms of Use',
   description: "Terms of Use for Backer Sonar's Kickstarter research and reporting tools.",
-  alternates: { canonical: '/terms' },
+  ...pageMetadata('/terms'),
 }
 
 export default function TermsPage() {

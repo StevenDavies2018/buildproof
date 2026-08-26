@@ -4,6 +4,7 @@ import Script from 'next/script'
 import localFont from 'next/font/local'
 import AuthChrome from '@/components/auth-chrome'
 import SiteFooter from '@/components/site-footer'
+import { SITE_NAME } from '@/lib/seo'
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-S888QYSB36'
 
@@ -19,6 +20,13 @@ export const metadata = {
     'Historical Kickstarter research for evidence-based product investigation.',
   alternates: {
     canonical: '/',
+  },
+  // Fallback for any route that doesn't set its own openGraph (metadata
+  // objects don't deep-merge, so pages using lib/seo.ts's pageMetadata()
+  // override this entirely with their own type/url).
+  openGraph: {
+    type: 'website' as const,
+    siteName: SITE_NAME,
   },
 }
 

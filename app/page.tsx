@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getDashboardOverview, getLatestDatasetSnapshot } from '@/lib/dashboard'
 import { getUserEntitlements } from '@/lib/auth'
 import { PAID_PRICE_USD, TRIAL_DAYS } from '@/lib/faq'
+import { pageMetadata } from '@/lib/seo'
 
 // Was force-dynamic — this page has no per-request personalization, so that
 // only bought cold-start TTFB on every hit (and made client-side navigation
@@ -25,7 +26,7 @@ export const revalidate = 300
 export const metadata: Metadata = {
   description:
     `Historical Kickstarter research for evidence-based product investigation. ${TRIAL_DAYS}-day free trial, then $${PAID_PRICE_USD}/month.`,
-  alternates: { canonical: '/' },
+  ...pageMetadata('/'),
 }
 
 function formatInteger(value: number) {

@@ -1,13 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getAllPostMeta } from '@/lib/blog'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'Blog',
   description: 'Data-driven Kickstarter research: what the historical dataset actually shows about goal size, campaign length, and category performance.',
-  alternates: { canonical: '/blog' },
+  ...pageMetadata('/blog'),
 }
 
 function formatDate(value: string) {

@@ -1,13 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getFounderContent } from '@/lib/founder'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'About',
   description: 'The founder behind Backer Sonar.',
-  alternates: { canonical: '/about' },
+  ...pageMetadata('/about'),
 }
 
 export default async function AboutPage() {

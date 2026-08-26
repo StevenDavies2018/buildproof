@@ -5,6 +5,7 @@ import ThemeToggle from '@/components/theme-toggle'
 import { getCurrentUser, getTrialDaysRemaining, getUserEntitlements, isTrialExpired } from '@/lib/auth'
 import { getSubscriptionAccessInfo } from '@/lib/billing'
 import { hasStripeConfig } from '@/lib/stripe'
+import { pageMetadata } from '@/lib/seo'
 import {
   disableAiCopilot,
   enableAiCopilot,
@@ -22,7 +23,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Sign In or Create an Account',
   description: 'Sign in or create a Backer Sonar account to save research views, campaigns, and comparisons.',
-  alternates: { canonical: '/account' },
+  ...pageMetadata('/account'),
 }
 
 export default async function AccountPage({

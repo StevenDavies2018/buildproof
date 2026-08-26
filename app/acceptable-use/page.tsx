@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import { PolicyPage } from '@/components/policy-page'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'Acceptable Use Policy',
   description: "Acceptable use guidelines for Backer Sonar's Kickstarter research platform.",
-  alternates: { canonical: '/acceptable-use' },
+  ...pageMetadata('/acceptable-use'),
 }
 
 export default function AcceptableUsePage() {

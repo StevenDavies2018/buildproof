@@ -1,13 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { FAQ_ITEMS } from '@/lib/faq'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'FAQ',
   description: 'Common questions about Backer Sonar: pricing, data sources, methodology, and AI Co-Pilot.',
-  alternates: { canonical: '/faq' },
+  ...pageMetadata('/faq'),
 }
 
 export default function FaqPage() {

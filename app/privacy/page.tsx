@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import { PolicyPage } from '@/components/policy-page'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description: 'How Backer Sonar collects, stores, and protects your account and research data.',
-  alternates: { canonical: '/privacy' },
+  ...pageMetadata('/privacy'),
 }
 
 export default function PrivacyPage() {

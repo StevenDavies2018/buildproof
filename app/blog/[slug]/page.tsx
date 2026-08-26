@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getAllPostMeta, getPostBySlug } from '@/lib/blog'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
@@ -21,7 +22,7 @@ export async function generateMetadata({
   return {
     title: post.meta.title,
     description: post.meta.description,
-    alternates: { canonical: `/blog/${slug}` },
+    ...pageMetadata(`/blog/${slug}`),
   }
 }
 

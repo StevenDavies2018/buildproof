@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import { PolicyPage } from '@/components/policy-page'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'Accessibility',
   description: "Backer Sonar's commitment to accessible design and how to report accessibility issues.",
-  alternates: { canonical: '/accessibility' },
+  ...pageMetadata('/accessibility'),
 }
 
 export default function AccessibilityPage() {

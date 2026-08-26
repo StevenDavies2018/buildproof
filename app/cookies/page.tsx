@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import { PolicyPage } from '@/components/policy-page'
+import { pageMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'Cookie Notice',
   description: 'What cookies and browser storage Backer Sonar uses for authentication and preferences.',
-  alternates: { canonical: '/cookies' },
+  ...pageMetadata('/cookies'),
 }
 
 export default function CookiesPage() {
