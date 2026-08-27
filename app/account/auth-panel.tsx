@@ -31,10 +31,12 @@ export function AuthPanel() {
           <p className="bs-kicker">Existing account</p>
           <label className="mt-5 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-field mt-2 w-full" /></label>
           <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required className="bs-field mt-2 w-full" /></label>
-          <button type="submit" className="bs-button-primary mt-5">Sign in</button>
-          <Link href="/account/reset-password" className="mt-3 inline-block text-xs text-slate-500 underline underline-offset-4 hover:text-slate-700">
-            Forgot password?
-          </Link>
+          <div className="mt-5 flex flex-wrap items-center gap-4">
+            <button type="submit" className="bs-button-primary">Sign in</button>
+            <Link href="/account/reset-password" className="text-xs text-slate-500 underline underline-offset-4 hover:text-slate-700">
+              Forgot password?
+            </Link>
+          </div>
           <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
           <a href="/api/auth/google?intent=signin" className="bs-button-secondary flex w-full justify-center">Login with Google</a>
         </form>
