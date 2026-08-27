@@ -147,6 +147,7 @@ export default async function AccountPage({
           {checkout === 'synced' ? <p className="mt-5 min-w-0 break-words rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">Billing status refreshed from Stripe.</p> : null}
           {checkout === 'copilot-enabled' ? <p className="mt-5 min-w-0 break-words rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">AI Co-Pilot is now enabled.</p> : null}
           {checkout === 'copilot-disabled' ? <p className="mt-5 min-w-0 break-words rounded-xl border border-sky-300 bg-sky-50 p-4 text-sm leading-6 text-sky-900">AI Co-Pilot has been turned off. Your saved research is unaffected.</p> : null}
+          {pending === 'password-reset-complete' ? <p className="mt-5 min-w-0 break-words rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">Your password has been reset. Sign in with your new password.</p> : null}
 
           {user ? (
             <div className="mt-8 min-w-0 rounded-2xl border border-bs-border bg-[color:var(--bs-field-bg)] p-6">
@@ -289,6 +290,9 @@ export default async function AccountPage({
                 <label className="mt-5 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-field mt-2 w-full" /></label>
                 <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required className="bs-field mt-2 w-full" /></label>
                 <button type="submit" className="bs-button-primary mt-5">Sign in</button>
+                <Link href="/account/reset-password" className="mt-3 inline-block text-xs text-slate-500 underline underline-offset-4 hover:text-slate-700">
+                  Forgot password?
+                </Link>
                 <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
                 <a href="/api/auth/google?intent=signin" className="bs-button-secondary inline-flex">Continue with Google</a>
               </form>

@@ -4,6 +4,7 @@ import {
   createManagedAccountAction,
   deleteManagedAccountAction,
   updateManagedAccountAction,
+  updateManagedAccountPasswordAction,
 } from './actions'
 import { getAdminUsersOverview } from '@/lib/admin-users'
 import { requireAdmin } from '@/lib/auth'
@@ -380,17 +381,35 @@ export default async function AdminUsersPage({
                       </div>
                     </form>
 
-                    <form action={deleteManagedAccountAction} className="xl:self-end">
-                      <input type="hidden" name="userId" value={String(user.id)} />
-                      <button
-                        type="submit"
-                        className="bs-button-secondary"
-                        disabled={user.id === adminUserId}
-                        title={user.id === adminUserId ? 'You cannot delete your own account' : undefined}
-                      >
-                        Delete account
-                      </button>
-                    </form>
+                    <div className="grid gap-3 xl:self-end">
+                      <form action={updateManagedAccountPasswordAction} className="flex flex-wrap items-end gap-2">
+                        <input type="hidden" name="userId" value={String(user.id)} />
+                        <label className="block text-sm font-medium text-slate-700">
+                          Update password
+                          <input
+                            name="password"
+                            type="password"
+                            required
+                            minLength={8}
+                            placeholder="New password"
+                            className="bs-field mt-2 w-full"
+                          />
+                        </label>
+                        <button type="submit" className="bs-button-secondary">Set password</button>
+                      </form>
+
+                      <form action={deleteManagedAccountAction}>
+                        <input type="hidden" name="userId" value={String(user.id)} />
+                        <button
+                          type="submit"
+                          className="bs-button-secondary"
+                          disabled={user.id === adminUserId}
+                          title={user.id === adminUserId ? 'You cannot delete your own account' : undefined}
+                        >
+                          Delete account
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </article>
               )

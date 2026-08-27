@@ -1,6 +1,7 @@
 import { fetchSavedResearchRowsForUser, hasAiCopilotConfig } from '@/lib/ai-copilot'
 import { requireAiCopilotAccess } from '@/lib/auth'
 import { CoPilotWorkspace } from './copilot-workspace'
+import { ProductResearchWorkspace } from './product-research-workspace'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,22 @@ export default async function AiCopilotPage() {
           ) : null}
         </section>
 
-        <section className="mt-6 grid gap-4">
+        <section className="mt-10 bs-panel">
+          <p className="bs-kicker">Product concept research</p>
+          <h2 className="bs-title mt-2 text-2xl font-semibold">What could I build?</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            Describe a product you could design or manufacture. This searches the full historical dataset for
+            comparable campaigns from the last 5 years, computes deterministic market signals (funding, backers,
+            launch frequency, repeat creators, success vs. failure), and only then asks AI Co-Pilot to interpret
+            those numbers &mdash; it never invents a statistic or a campaign link.
+          </p>
+          <div className="mt-6">
+            <ProductResearchWorkspace />
+          </div>
+        </section>
+
+        <section className="mt-10 grid gap-4">
+          <p className="bs-kicker">Saved research</p>
           <CoPilotWorkspace items={items} />
         </section>
       </div>

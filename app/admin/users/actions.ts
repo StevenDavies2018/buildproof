@@ -7,6 +7,7 @@ import {
   createManagedAccount,
   deleteManagedAccount,
   updateManagedAccount,
+  updateManagedAccountPassword,
 } from '@/lib/admin-users'
 
 function message(value: unknown) {
@@ -56,6 +57,21 @@ export async function updateManagedAccountAction(formData: FormData) {
 
   revalidatePath('/admin/users')
   redirect('/admin/users?success=Account%20updated')
+}
+
+export async function updateManagedAccountPasswordAction(formData: FormData) {
+  await requireAdmin()
+  try {
+    await updateManagedAccountPassword({
+      userId: Number(formData.get('userId')),
+      password: String(formData.get('password') ?? ''),
+    })
+  } catch (error) {
+    redirect(`/admin/users?error=${message(error)}`)
+  }
+
+  revalidatePath('/admin/users')
+  redirect('/admin/users?success=Password%20updated.%20That%20account%27s%20sessions%20were%20signed%20out.')
 }
 
 export async function deleteManagedAccountAction(formData: FormData) {

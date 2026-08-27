@@ -24,6 +24,7 @@ export type AnalyticsEventName =
   | 'ai_copilot_enabled'
   | 'ai_copilot_disabled'
   | 'ai_copilot_brief_generated'
+  | 'ai_copilot_product_research_run'
 
 export async function recordAnalyticsEvent(input: {
   userId?: number | null

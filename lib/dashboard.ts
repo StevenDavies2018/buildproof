@@ -312,11 +312,11 @@ export async function getDashboardOverview(
         ? sql``
         : sql`
             AND (
-              cr.project_name ~* ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.blurb, '') ~* ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.creator_name, '') ~* ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.kickstarter_category_name, '') ~* ANY(${sql.array(searchPatterns)}::text[])
-              OR COALESCE(cr.kickstarter_category_slug, '') ~* ANY(${sql.array(searchPatterns)}::text[])
+              cr.project_name ~* ANY(${searchPatterns}::text[])
+              OR COALESCE(cr.blurb, '') ~* ANY(${searchPatterns}::text[])
+              OR COALESCE(cr.creator_name, '') ~* ANY(${searchPatterns}::text[])
+              OR COALESCE(cr.kickstarter_category_name, '') ~* ANY(${searchPatterns}::text[])
+              OR COALESCE(cr.kickstarter_category_slug, '') ~* ANY(${searchPatterns}::text[])
               OR COALESCE(
                 cr.raw_payload_json->'data'->>'description',
                 cr.raw_payload_json->'data'->>'story',
@@ -324,13 +324,13 @@ export async function getDashboardOverview(
                 cr.raw_payload_json->>'story',
                 ''
               )
-                ~* ANY(${sql.array(searchPatterns)}::text[])
+                ~* ANY(${searchPatterns}::text[])
               OR EXISTS (
                 SELECT 1
                 FROM campaign_classifications cc_search
                 INNER JOIN taxonomy_nodes tn_search ON tn_search.id = cc_search.taxonomy_node_id
                 WHERE cc_search.campaign_id = cr.id
-                  AND tn_search.label ~* ANY(${sql.array(searchPatterns)}::text[])
+                  AND tn_search.label ~* ANY(${searchPatterns}::text[])
               )
             )
           `
@@ -611,7 +611,7 @@ export async function getDashboardOverview(
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT tn.label ORDER BY tn.label), NULL) AS "taxonomyLabels",
         ARRAY(
           SELECT term
-          FROM UNNEST(${sql.array(searchTerms)}::text[]) AS term
+          FROM UNNEST(${searchTerms}::text[]) AS term
           WHERE REGEXP_REPLACE(
             LOWER(COALESCE(
               cr.raw_payload_json->'data'->>'description',

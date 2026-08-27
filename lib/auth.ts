@@ -147,6 +147,81 @@ async function notifyAdminOfSignup(email: string, displayName: string, method: '
   }
 }
 
+async function sendPasswordResetEmail(userId: number, email: string, displayName: string) {
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    throw new Error('Password reset email is not configured yet')
+  }
+  const token = randomBytes(32).toString('base64url')
+  const sql = getSql()
+  await sql`DELETE FROM password_reset_tokens WHERE user_id = ${userId} AND used_at IS NULL`
+  await sql`
+    INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+    VALUES (${userId}, ${hashSessionToken(token)}, ${verificationExpiry()})
+  `
+  const baseUrl = process.env.APP_URL || 'http://localhost:3000'
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const result = await resend.emails.send({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'Reset your Backer Sonar password',
+    html: `<p>Hi ${displayName},</p><p>Reset your Backer Sonar password by clicking the link below:</p><p><a href="${baseUrl}/account/reset-password?token=${token}">Reset my password</a></p><p>This link expires in 24 hours. If you didn't request this, you can ignore this email.</p>`,
+  })
+  if (result.error) throw new Error('Password reset email could not be sent')
+}
+
+export async function requestPasswordReset(email: string) {
+  if (!hasDatabaseConfig()) throw new Error('Database is not configured')
+  const normalizedEmail = normalizeEmail(email)
+  const ip = await getClientIp()
+  if (!(await checkRateLimit(`reset-request:${normalizedEmail}`, 3, 60))) {
+    throw new Error('Too many reset attempts. Please try again later.')
+  }
+  if (!(await checkRateLimit(`reset-request-ip:${ip}`, 10, 60))) {
+    throw new Error('Too many reset attempts. Please try again later.')
+  }
+
+  const sql = getSql()
+  const [user] = await sql<{ id: number; email: string; displayName: string; googleSubject: string | null }[]>`
+    SELECT id, email, display_name AS "displayName", google_subject AS "googleSubject"
+    FROM app_users
+    WHERE email = ${normalizedEmail}
+    LIMIT 1
+  `
+  // Same outcome whether the account doesn't exist or is Google-only --
+  // avoids confirming which emails have accounts, and a Google-only account
+  // has no password to reset via this flow.
+  if (!user || user.googleSubject) return
+  await sendPasswordResetEmail(user.id, user.email, user.displayName)
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  if (!hasDatabaseConfig()) throw new Error('Database is not configured')
+  if (newPassword.length < 8) throw new Error('Password must be at least 8 characters')
+
+  const sql = getSql()
+  const [row] = await sql<{ userId: number }[]>`
+    SELECT user_id AS "userId"
+    FROM password_reset_tokens
+    WHERE token_hash = ${hashSessionToken(token)}
+      AND used_at IS NULL
+      AND expires_at > CURRENT_TIMESTAMP
+    LIMIT 1
+  `
+  if (!row) throw new Error('This password reset link is invalid or expired')
+
+  await sql.begin(async (transaction) => {
+    await transaction`
+      UPDATE app_users
+      SET password_hash = ${hashPassword(newPassword)}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${row.userId}
+    `
+    await transaction`UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE token_hash = ${hashSessionToken(token)}`
+    // A password reset should sign out every existing session, the same way
+    // updateManagedAccountPassword() does for an admin-initiated reset.
+    await transaction`DELETE FROM app_sessions WHERE user_id = ${row.userId}`
+  })
+}
+
 export async function resendVerificationEmail(email: string) {
   if (!hasDatabaseConfig()) throw new Error('Database is not configured')
   const normalizedEmail = normalizeEmail(email)
@@ -530,13 +605,13 @@ export async function verifyEmail(token: string) {
   })
 }
 
-export async function requireAdmin() {
+export async function requireAdmin(): Promise<AuthUser> {
   const user = await getCurrentUser()
   if (!user || user.role !== 'admin') {
     const { redirect } = await import('next/navigation')
     redirect('/account?error=Admin%20access%20required')
   }
-  return user
+  return user as AuthUser
 }
 
 export async function signOut() {

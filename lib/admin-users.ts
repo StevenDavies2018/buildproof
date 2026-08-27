@@ -307,6 +307,32 @@ export async function updateManagedAccount(input: {
   }
 }
 
+export async function updateManagedAccountPassword(input: {
+  userId: number
+  password: string
+}) {
+  if (!hasDatabaseConfig()) throw new Error('Database is not configured')
+  if (!input.userId) throw new Error('Missing account id')
+  if (input.password.length < 8) throw new Error('Password must be at least 8 characters')
+
+  const sql = getSql()
+  try {
+    // Invalidate existing sessions so a compromised or shared account doesn't
+    // stay signed in past a deliberate password change — same rationale as a
+    // self-service password reset.
+    await sql.begin(async (transaction) => {
+      await transaction`
+        UPDATE app_users
+        SET password_hash = ${hashPassword(input.password)}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${input.userId}
+      `
+      await transaction`DELETE FROM app_sessions WHERE user_id = ${input.userId}`
+    })
+  } finally {
+    await sql.end()
+  }
+}
+
 export async function deleteManagedAccount(input: {
   userId: number
   currentAdminUserId: number

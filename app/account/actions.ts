@@ -6,8 +6,10 @@ import { recordAnalyticsEvent } from '@/lib/analytics'
 import {
   createAccount,
   getUserEntitlements,
+  requestPasswordReset,
   requireSignedInUser,
   resendVerificationEmail,
+  resetPassword,
   setAiCopilotEnabled,
   signIn,
   signOut,
@@ -61,6 +63,25 @@ export async function resendVerificationEmailAction(formData: FormData) {
     redirect(`/account?error=${message(error)}`)
   }
   redirect('/account?pending=verification-resent')
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  try {
+    await requestPasswordReset(String(formData.get('email') ?? ''))
+  } catch (error) {
+    redirect(`/account/reset-password?error=${message(error)}`)
+  }
+  redirect('/account/reset-password?pending=reset-email-sent')
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const token = String(formData.get('token') ?? '')
+  try {
+    await resetPassword(token, String(formData.get('password') ?? ''))
+  } catch (error) {
+    redirect(`/account/reset-password?token=${encodeURIComponent(token)}&error=${message(error)}`)
+  }
+  redirect('/account?pending=password-reset-complete')
 }
 
 export async function logoutAccount() {

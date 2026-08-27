@@ -9,6 +9,7 @@ import {
   getGoalSizeAnalysisMetrics,
 } from '@/lib/outcome-analysis'
 import { getCampaignDetail, getCompareCampaigns } from '@/lib/research'
+import { researchProductConcept, type ProductResearchResult } from '@/lib/product-research'
 
 const MODEL = 'claude-sonnet-4-5'
 const MAX_METRIC_ROWS = 20
@@ -293,6 +294,160 @@ Rules you must follow:
 4. If a sample size is small, a confidence label is low, or money-comparable coverage is partial, say so explicitly rather than treating the numbers as fully reliable.
 5. Keep your response to a few short paragraphs or a short bulleted list. Reference specific numbers from the context, not vague language like "many" or "strong."
 6. Begin your response with the words "AI-generated interpretation:" on its own line, so it is never mistaken for source evidence.`
+
+function confidenceLabel(totalMatches: number) {
+  if (totalMatches < 8) return 'low (fewer than 8 comparable campaigns)'
+  if (totalMatches < 30) return 'moderate (8-29 comparable campaigns)'
+  return 'higher (30+ comparable campaigns)'
+}
+
+function buildProductResearchContext(result: ProductResearchResult): ResolvedContext {
+  if (!result.configured) {
+    return {
+      contextLines: ['The database is not configured, so no campaign data is available.'],
+      provenanceLine: 'No data source available.',
+    }
+  }
+
+  if (result.totalMatches === 0) {
+    return {
+      contextLines: [
+        `Search terms derived from the idea: ${result.searchTerms.join(', ') || 'none'}.`,
+        result.excludeTerms.length ? `Excluded terms: ${result.excludeTerms.join(', ')}.` : '',
+        `No campaigns launched in the last ${result.lookbackYears} years matched this idea in the full dataset.`,
+      ].filter(Boolean),
+      provenanceLine: 'No comparable campaigns found — there is nothing to interpret.',
+    }
+  }
+
+  const forStats = result.evidenceFor
+  const againstStats = result.evidenceAgainst
+
+  const evidenceForLines = forStats.count
+    ? [
+        `Evidence FOR (${forStats.count} successful campaigns): median pledged ${money(forStats.medianPledgedUsd)}, ` +
+        `average pledged ${money(forStats.avgPledgedUsd)}, median backers ${forStats.medianBackers ?? 'n/a'}, ` +
+        `average goal ${money(forStats.avgGoalUsd)}.`,
+      ]
+    : ['Evidence FOR: no successful campaigns matched.']
+
+  const evidenceAgainstLines = againstStats.count
+    ? [
+        `Evidence AGAINST (${againstStats.count} unsuccessful campaigns): median pledged ${money(againstStats.medianPledgedUsd)}, ` +
+        `average pledged ${money(againstStats.avgPledgedUsd)}, median backers ${againstStats.medianBackers ?? 'n/a'}, ` +
+        `average goal ${money(againstStats.avgGoalUsd)}.`,
+      ]
+    : ['Evidence AGAINST: no unsuccessful campaigns matched.']
+
+  const launchFrequencyLines = result.launchFrequency.map(
+    (year) => `- ${year.launchYear}: ${year.campaignCount} campaigns launched`,
+  )
+
+  const repeatCreatorLines = result.repeatCreators.map(
+    (creator) =>
+      `- ${creator.creatorName}: ${creator.campaignCount} campaigns in this result set ` +
+      `(${creator.campaignNames.slice(0, 4).join('; ')}${creator.campaignNames.length > 4 ? '; ...' : ''}), ` +
+      `combined pledged ${money(creator.totalPledgedUsd)}. Treat these as one data point, not independent validation.`,
+  )
+
+  function campaignLine(campaign: ProductResearchResult['topSuccessfulCampaigns'][number]) {
+    return (
+      `- ${campaign.projectName} (${campaign.normalizedStatus}, launched ${campaign.launchedAt ?? 'unknown'}): ` +
+      `goal ${money(campaign.goalUsd)}, pledged ${money(campaign.pledgedUsd)}, backers ${campaign.backersCount ?? 'n/a'}` +
+      (campaign.creatorName ? `, creator ${campaign.creatorName}` : '')
+    )
+  }
+  const topSuccessfulLines = result.topSuccessfulCampaigns.map(campaignLine)
+  const topUnsuccessfulLines = result.topUnsuccessfulCampaigns.map(campaignLine)
+
+  return {
+    contextLines: [
+      `Idea: "${result.idea}". Search terms used: ${result.searchTerms.join(', ')}.`,
+      result.excludeTerms.length ? `Excluded terms: ${result.excludeTerms.join(', ')}.` : '',
+      `Dataset scope: full historical dataset, campaigns launched in the last ${result.lookbackYears} years.`,
+      `Total comparable campaigns matched: ${result.totalMatches}. ${result.successfulCount} successful, ` +
+      `${result.unsuccessfulCount} unsuccessful, ${result.otherStatusCount} still live or unresolved. ` +
+      `Success rate among resolved campaigns: ${percent(result.successRate)}.`,
+      `Sample-size confidence for this idea: ${confidenceLabel(result.totalMatches)}.`,
+      ...evidenceForLines,
+      ...evidenceAgainstLines,
+      launchFrequencyLines.length ? 'Launch frequency by year:' : '',
+      ...launchFrequencyLines,
+      repeatCreatorLines.length
+        ? 'Creators with multiple campaigns in this result set (concentration risk — do not count each as independent market validation):'
+        : 'No single creator has more than one campaign in this result set.',
+      ...repeatCreatorLines,
+      'Most relevant SUCCESSFUL matching campaigns (these are shown to the user separately as linked cards — you do not need to repeat their URLs):',
+      ...(topSuccessfulLines.length ? topSuccessfulLines : ['- none']),
+      'Most relevant UNSUCCESSFUL matching campaigns (also shown to the user as linked cards):',
+      ...(topUnsuccessfulLines.length ? topUnsuccessfulLines : ['- none']),
+    ].filter(Boolean),
+    provenanceLine:
+      `Full-dataset text search, deterministic keyword matching (no AI-generated retrieval). ` +
+      `${result.totalMatches} campaigns matched before ranking; top ${result.topSuccessfulCampaigns.length} successful and ` +
+      `${result.topUnsuccessfulCampaigns.length} unsuccessful shown above.`,
+  }
+}
+
+const PRODUCT_CONCEPT_SYSTEM_PROMPT = `You are Backer Sonar's AI Co-Pilot, doing Kickstarter market research for a user considering what physical product to design and launch.
+
+Rules you must follow:
+1. Only reference the concrete numbers given to you in the CONTEXT section below. Never invent a statistic, campaign, category, launch date, or dollar figure that is not present there.
+2. Never invent or restate a campaign URL. Campaign links are rendered separately in the product UI directly from the underlying data — refer to campaigns by name only.
+3. Always address BOTH sides of the evidence: what supports the idea (successful campaigns, funding levels, backer counts, launch frequency) AND what argues against it (unsuccessful campaigns, weak medians, thin sample size, concentration in one or two creators). Do not present only the favorable evidence.
+4. If multiple top campaigns share the same creator, explicitly say this reduces how independent that evidence is — repeated campaigns from one creator are one data point, not several.
+5. Do not predict whether any future campaign will succeed. Do not assign a hidden score or probability.
+6. You may describe what the evidence suggests is comparatively stronger or weaker within the matched campaigns, and you may name 1-3 underserved angles the data hints at, but always tie each claim to the specific numbers or campaigns that support it, and be clear this is a pattern in past campaigns, not a guarantee.
+7. End your response with a line starting "Confidence:" that states whether this conclusion rests on a lot of comparable data or only a handful of examples, using the sample-size confidence value given in the context.
+8. Keep your response to a few short paragraphs plus the required Confidence line. Reference specific numbers, not vague language like "many" or "strong."
+9. Begin your response with the words "AI-generated interpretation:" on its own line, so it is never mistaken for source evidence.`
+
+export async function generateProductConceptBrief(idea: string, excludeTerms: string[] = []) {
+  if (!hasAiCopilotConfig()) throw new Error('AI Co-Pilot is not configured')
+
+  const trimmedIdea = idea.trim()
+  if (!trimmedIdea) throw new Error('Describe the product idea first')
+
+  const result = await researchProductConcept(trimmedIdea, excludeTerms)
+  const resolved = buildProductResearchContext(result)
+  const contextText = resolved.contextLines.join('\n') + '\n' + resolved.provenanceLine
+
+  if (result.totalMatches === 0) {
+    return {
+      text:
+        'AI-generated interpretation: no comparable campaigns were found for this idea in the last ' +
+        `${result.lookbackYears} years of the dataset, so there is no evidence to summarize. Try broader or ` +
+        'different search terms.\n\nConfidence: none — zero comparable campaigns.',
+      generatedAt: new Date().toISOString(),
+      result,
+    }
+  }
+
+  const client = getClient()
+  const message = await client.messages.create({
+    model: MODEL,
+    max_tokens: 900,
+    system: PRODUCT_CONCEPT_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: `CONTEXT:\n${contextText}\n\nBased only on this evidence, what does Kickstarter history show about this product idea?`,
+      },
+    ],
+  })
+
+  const text = message.content
+    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+    .map((block) => block.text)
+    .join('\n')
+    .trim()
+
+  return {
+    text: text || 'AI-generated interpretation: no response was returned.',
+    generatedAt: new Date().toISOString(),
+    result,
+  }
+}
 
 export async function generateCoPilotBrief(userId: number, itemKey: string) {
   if (!hasAiCopilotConfig()) throw new Error('AI Co-Pilot is not configured')
