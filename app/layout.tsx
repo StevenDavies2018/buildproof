@@ -7,6 +7,7 @@ import SiteFooter from '@/components/site-footer'
 import { SITE_NAME } from '@/lib/seo'
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-S888QYSB36'
+const CLARITY_PROJECT_ID = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID
 
 export const metadata = {
   // `||`, not `??` — APP_URL exists in Vercel but can be set to an empty
@@ -78,6 +79,21 @@ export default function RootLayout({
             `,
           }}
         />
+        {CLARITY_PROJECT_ID ? (
+          <Script
+            id="microsoft-clarity"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function (c, l, a, r, i, t, y) {
+                  c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments) };
+                  t = l.createElement(r); t.async = 1; t.src = "https://www.clarity.ms/tag/" + i;
+                  y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+                })(window, document, "clarity", "script", "${CLARITY_PROJECT_ID}");
+              `,
+            }}
+          />
+        ) : null}
         <script
           dangerouslySetInnerHTML={{
             __html: `
