@@ -36,7 +36,7 @@ export function AuthPanel() {
             Forgot password?
           </Link>
           <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
-          <a href="/api/auth/google?intent=signin" className="bs-button-secondary inline-flex">Continue with Google</a>
+          <a href="/api/auth/google?intent=signin" className="bs-button-secondary flex w-full justify-center">Login with Google</a>
         </form>
       ) : (
         <form action={registerAccount} className="mt-6">
