@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PersistedViewLink } from '@/components/persisted-view-link'
-import ThemeToggle from '@/components/theme-toggle'
 import { getCurrentUser, getTrialDaysRemaining, getUserEntitlements, isTrialExpired } from '@/lib/auth'
 import { getSubscriptionAccessInfo } from '@/lib/billing'
 import { hasStripeConfig } from '@/lib/stripe'
@@ -9,14 +8,13 @@ import { pageMetadata } from '@/lib/seo'
 import {
   disableAiCopilot,
   enableAiCopilot,
-  loginAccount,
   logoutAccount,
   openBillingPortal,
-  registerAccount,
   resendVerificationEmailAction,
   startUpgradeCheckout,
   syncBillingStatus,
 } from './actions'
+import { AuthPanel } from './auth-panel'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,18 +102,9 @@ export default async function AccountPage({
 
   return (
     <main className="bs-shell">
-      <div className="bs-container max-w-5xl">
+      <div className="bs-container max-w-2xl">
         <section className="bs-panel">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="bs-kicker">Backer Sonar account</p>
-              <h1 className="bs-title mt-2 text-4xl font-semibold">Keep your research workspace</h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">
-                Save research views, campaigns, and comparisons across sessions.
-              </p>
-            </div>
-            <ThemeToggle className="bs-theme-toggle self-start" />
-          </div>
+          <h1 className="bs-kicker text-center">Backer Sonar account</h1>
 
           {error ? (
             <div className="mt-5 min-w-0 break-words rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
@@ -283,61 +272,8 @@ export default async function AccountPage({
               )}
             </div>
           ) : (
-            <div className="mt-8 grid gap-6 lg:grid-cols-2">
-              <form action={loginAccount} className="rounded-2xl border border-bs-border bg-[color:var(--bs-field-bg)] p-5">
-                <p className="bs-kicker">Existing account</p>
-                <h2 className="mt-2 text-2xl font-semibold text-slate-900">Sign in</h2>
-                <label className="mt-5 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-field mt-2 w-full" /></label>
-                <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required className="bs-field mt-2 w-full" /></label>
-                <button type="submit" className="bs-button-primary mt-5">Sign in</button>
-                <Link href="/account/reset-password" className="mt-3 inline-block text-xs text-slate-500 underline underline-offset-4 hover:text-slate-700">
-                  Forgot password?
-                </Link>
-                <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
-                <a href="/api/auth/google?intent=signin" className="bs-button-secondary inline-flex">Continue with Google</a>
-              </form>
-              <form action={registerAccount} className="rounded-2xl border border-bs-border bg-[color:var(--bs-field-bg)] p-5">
-                <p className="bs-kicker">New workspace</p>
-                <h2 className="mt-2 text-2xl font-semibold text-slate-900">Create account</h2>
-                <label className="mt-5 block text-sm font-medium text-slate-700">Display name<input name="displayName" required minLength={2} className="bs-field mt-2 w-full" /></label>
-                <label className="mt-4 block text-sm font-medium text-slate-700">Email<input name="email" type="email" required className="bs-field mt-2 w-full" /></label>
-                <label className="mt-4 block text-sm font-medium text-slate-700">Password<input name="password" type="password" required minLength={8} className="bs-field mt-2 w-full" /></label>
-                <label className="mt-5 flex items-start gap-3 text-sm leading-6 text-slate-700">
-                  <input name="acceptTerms" type="checkbox" required className="mt-1 h-4 w-4 shrink-0 rounded border-bs-border" />
-                  <span>
-                    I agree to the <Link href="/terms" className="font-medium text-slate-900 underline underline-offset-4">Terms of use</Link> and <Link href="/privacy" className="font-medium text-slate-900 underline underline-offset-4">Privacy policy</Link>.
-                  </span>
-                </label>
-                <label className="mt-4 flex items-start gap-3 text-sm leading-6 text-slate-700">
-                  <input name="acknowledgeDisclaimer" type="checkbox" required className="mt-1 h-4 w-4 shrink-0 rounded border-bs-border" />
-                  <span>
-                    I understand the <Link href="/legal-disclaimer" className="font-medium text-slate-900 underline underline-offset-4">legal disclaimer</Link> and that Backer Sonar provides research support, not financial, legal, or performance guarantees.
-                  </span>
-                </label>
-                <button type="submit" className="bs-button-primary mt-5">Create account</button>
-                <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-bs-border" />or<span className="h-px flex-1 bg-bs-border" /></div>
-                <Link href="/account/google-consent" className="bs-button-secondary inline-flex">Register with Google</Link>
-              </form>
-            </div>
+            <AuthPanel />
           )}
-
-          {!user ? (
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <PersistedViewLink
-                view="dashboard"
-                fallbackHref="/dashboard"
-                className="bs-button-secondary"
-                analyticsEventName="account_return_to_last_view"
-                analyticsSurface="account"
-                analyticsMetadata={{ destination: 'last-view' }}
-              >
-                Return to last view
-              </PersistedViewLink>
-              <p className="text-sm leading-6 text-slate-600">
-                Go back to the last dashboard slice you were reviewing without losing your research context.
-              </p>
-            </div>
-          ) : null}
         </section>
       </div>
     </main>
