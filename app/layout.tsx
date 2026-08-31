@@ -2,6 +2,7 @@ import './globals.css'
 import { Suspense } from 'react'
 import Script from 'next/script'
 import localFont from 'next/font/local'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import AuthChrome from '@/components/auth-chrome'
 import SiteFooter from '@/components/site-footer'
 import { SITE_NAME } from '@/lib/seo'
@@ -116,6 +117,7 @@ export default function RootLayout({
         </Suspense>
         {children}
         <SiteFooter />
+        <SpeedInsights />
       </body>
     </html>
   )
