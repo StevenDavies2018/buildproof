@@ -333,6 +333,18 @@ export async function updateManagedAccountPassword(input: {
   }
 }
 
+export async function revokeManagedAccountSessions(input: { userId: number }) {
+  if (!hasDatabaseConfig()) throw new Error('Database is not configured')
+  if (!input.userId) throw new Error('Missing account id')
+
+  const sql = getSql()
+  try {
+    await sql`DELETE FROM app_sessions WHERE user_id = ${input.userId}`
+  } finally {
+    await sql.end()
+  }
+}
+
 export async function deleteManagedAccount(input: {
   userId: number
   currentAdminUserId: number

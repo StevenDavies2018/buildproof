@@ -3,6 +3,7 @@ import { PersistedViewLink } from '@/components/persisted-view-link'
 import {
   createManagedAccountAction,
   deleteManagedAccountAction,
+  revokeManagedAccountSessionsAction,
   updateManagedAccountAction,
   updateManagedAccountPasswordAction,
 } from './actions'
@@ -396,6 +397,11 @@ export default async function AdminUsersPage({
                           />
                         </label>
                         <button type="submit" className="bs-button-secondary">Set password</button>
+                      </form>
+
+                      <form action={revokeManagedAccountSessionsAction}>
+                        <input type="hidden" name="userId" value={String(user.id)} />
+                        <button type="submit" className="bs-button-secondary">Sign out everywhere</button>
                       </form>
 
                       <form action={deleteManagedAccountAction}>
