@@ -4,11 +4,11 @@
 // dynamic rendering, undoing the static/ISR work elsewhere in this pass.
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.google-analytics.com https://*.clarity.ms https://va.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.google-analytics.com https://*.clarity.ms",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://images.ctfassets.net https://*.google-analytics.com https://www.googletagmanager.com https://api.producthunt.com https://smollaunch.com https://*.clarity.ms",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://*.clarity.ms https://vitals.vercel-insights.com",
+  "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://*.clarity.ms",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
