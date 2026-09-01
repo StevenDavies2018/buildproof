@@ -11,7 +11,7 @@ import {
   getMetricYearRows,
 } from '@/lib/category-analysis'
 import { HierarchicalCategoryFilters } from '@/components/hierarchical-category-filters'
-import { getDashboardOverview } from '@/lib/dashboard'
+import { getDashboardOverview, getDashboardStartState } from '@/lib/dashboard'
 import {
   type ResearchFilterSearchParams,
   toDashboardFilters,
@@ -324,9 +324,24 @@ export default async function ReportsPage({
     sortDir: 'desc',
   }
 
+  // filterSeed only feeds the category/taxonomy dropdown options. The
+  // taxonomy dropdown is disabled until a category is picked (see
+  // HierarchicalCategoryFilters), and picking one immediately reloads the
+  // page with real filters (submitOnCategoryChange) -- so on a fresh
+  // landing with nothing selected yet, running the full dashboard query
+  // just for that disabled dropdown's contents is pure waste. Once any
+  // filter is actually applied, use the real query so taxonomy counts stay
+  // accurate for the selection in progress.
+  const hasFilterSeedSelection = Boolean(
+    dashboardFilters.search || dashboardFilters.categoryParent || dashboardFilters.categorySlug ||
+    dashboardFilters.rawState || dashboardFilters.durationBucket || dashboardFilters.minGoal ||
+    dashboardFilters.minPledged || dashboardFilters.launchWindow || dashboardFilters.minimumBackers ||
+    dashboardFilters.includeFailures === 'false' || dashboardFilters.fullyResearchableOnly === 'true',
+  )
+
   const [metrics, filterSeed] = await Promise.all([
     getCategoryAnalysisMetrics(metricWindow, baseFilters),
-    getDashboardOverview(baseFilters),
+    hasFilterSeedSelection ? getDashboardOverview(baseFilters) : getDashboardStartState(baseFilters),
   ])
 
   if (!metrics.length) {
