@@ -18,25 +18,21 @@ export async function updateSubsetMembershipAction(formData: FormData) {
 
   const sql = getSql()
 
-  try {
-    await sql`
-      UPDATE subset_memberships
-      SET
-        membership_status = ${membershipStatus},
-        confidence_label = ${confidenceLabel || null},
-        reason_json = jsonb_set(
-          COALESCE(reason_json, '{}'::jsonb),
-          '{lastUpdatedFrom}',
-          '"admin-ui"'::jsonb,
-          true
-        )
-      WHERE campaign_id = ${campaignId}
-        AND subset_key = ${subsetKey}
-        AND subset_version = ${subsetVersion}
-    `
-  } finally {
-    await sql.end()
-  }
+  await sql`
+    UPDATE subset_memberships
+    SET
+      membership_status = ${membershipStatus},
+      confidence_label = ${confidenceLabel || null},
+      reason_json = jsonb_set(
+        COALESCE(reason_json, '{}'::jsonb),
+        '{lastUpdatedFrom}',
+        '"admin-ui"'::jsonb,
+        true
+      )
+    WHERE campaign_id = ${campaignId}
+      AND subset_key = ${subsetKey}
+      AND subset_version = ${subsetVersion}
+  `
 
   revalidatePath('/admin')
   redirect(returnTo || '/admin')

@@ -18,7 +18,5 @@ export async function GET() {
   } catch (error) {
     console.error('Health check database ping failed', error)
     return NextResponse.json({ status: 'error', database: 'down' }, { status: 503 })
-  } finally {
-    await sql.end()
   }
 }

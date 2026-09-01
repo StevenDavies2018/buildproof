@@ -70,8 +70,7 @@ export async function POST(request: Request) {
 
   const sql = getSql()
   let limitReached = false
-  try {
-    await sql.begin(async (tx) => {
+  await sql.begin(async (tx) => {
       // Serialize concurrent saves for this user so the count check below can't
       // race with another in-flight save and both slip past the limit.
       await tx`SELECT pg_advisory_xact_lock(${user.id})`
@@ -108,10 +107,7 @@ export async function POST(request: Request) {
           note = EXCLUDED.note,
           saved_at = CURRENT_TIMESTAMP
       `
-    })
-  } finally {
-    await sql.end()
-  }
+  })
 
   if (limitReached) {
     const label =
