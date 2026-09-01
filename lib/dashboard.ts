@@ -120,7 +120,7 @@ export type DashboardOverview = {
   queryTerms: string[]
 }
 
-function toRequiredFilters(filters: DashboardFilters): Required<DashboardFilters> {
+export function toRequiredFilters(filters: DashboardFilters): Required<DashboardFilters> {
   const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 
   return {
@@ -254,6 +254,50 @@ const getCachedCategories = unstable_cache(
   ['dashboard-available-categories'],
   { revalidate: 3600, tags: ['dashboard-categories'] },
 )
+
+function buildEmptyOverview(
+  filters: Required<DashboardFilters>,
+  categories: DashboardCategoryRow[],
+): DashboardOverview {
+  return {
+    configured: true,
+    filters,
+    summary: {
+      comparableCampaigns: 0,
+      successRate: null,
+      medianSuccessfulBackers: null,
+      recentCampaignCount: 0,
+      researchableCampaignCount: 0,
+      medianSuccessfulFundingMultiple: null,
+      supportedOutcomeCount: 0,
+      moneyComparableCount: 0,
+    },
+    taxonomy: [],
+    trends: [],
+    availableYears: [],
+    outcomes: [],
+    campaigns: [],
+    categories,
+    trendDirection: 'insufficient_data',
+    rankingVersion: RESEARCH_RANKING_VERSION,
+    queryTerms: tokenizeResearchIdea(filters.search),
+  }
+}
+
+// Before a user has applied any filter, the "start" state has nothing to
+// show yet — the UI hides results until then anyway (see showResults in
+// research-dashboard.tsx) — so there's no reason to run the full-dataset
+// aggregate queries just to throw the result away. This only fetches the
+// (already cached) category list, needed to populate the filter dropdowns
+// themselves, and skips everything else.
+export async function getDashboardStartState(
+  inputFilters: DashboardFilters = {},
+): Promise<DashboardOverview> {
+  const filters = toRequiredFilters(inputFilters)
+  if (!hasDatabaseConfig()) return buildEmptyOverview(filters, [])
+  const categories = await getCachedCategories()
+  return buildEmptyOverview(filters, categories)
+}
 
 export async function getDashboardOverview(
   inputFilters: DashboardFilters = {},
@@ -472,9 +516,21 @@ export async function getDashboardOverview(
       ${yearFilter}
     `
 
-    const categories = await getCachedCategories()
+    const candidateLimit =
+      searchTerms.length > 0 && filters.sortBy === 'recommended'
+        ? 4000
+        : cardLimitValue
 
-    const [summaryRow] = await sql<DashboardSummary[]>`
+    // These seven reads are all independent of each other (none consumes
+    // another's result, they just share the same filter SQL fragments) —
+    // running them concurrently instead of one-by-one cuts dashboard load
+    // time roughly to the slowest single query instead of the sum of all
+    // of them. This matters most right after sign-in, since sign-in
+    // redirects straight into this page.
+    const [categories, [summaryRow], taxonomy, trends, availableYearRows, outcomes, campaignCandidates] =
+      await Promise.all([
+        getCachedCategories(),
+        sql<DashboardSummary[]>`
       SELECT
         COUNT(*)::int AS "comparableCampaigns",
         COALESCE(
@@ -509,9 +565,8 @@ export async function getDashboardOverview(
       INNER JOIN campaigns_normalized cn ON cn.campaign_id = cr.id
       LEFT JOIN campaign_currency_normalizations cmn ON cmn.campaign_id = cr.id
       ${baseWhere}
-    `
-
-    const taxonomy = await sql<DashboardTaxonomyRow[]>`
+    `,
+        sql<DashboardTaxonomyRow[]>`
       SELECT
         labeled.label AS "label",
         COUNT(*)::int AS "campaignCount"
@@ -530,9 +585,8 @@ export async function getDashboardOverview(
       ) AS labeled
       GROUP BY labeled.label
       ORDER BY COUNT(*) DESC, labeled.label ASC
-    `
-
-    const trends = await sql<DashboardTrendRow[]>`
+    `,
+        sql<DashboardTrendRow[]>`
       SELECT
         EXTRACT(YEAR FROM cr.launched_at_ts)::int AS "launchYear",
         COUNT(*)::int AS "campaignCount",
@@ -558,9 +612,8 @@ export async function getDashboardOverview(
       AND cr.launched_at_ts IS NOT NULL
       GROUP BY EXTRACT(YEAR FROM cr.launched_at_ts)
       ORDER BY EXTRACT(YEAR FROM cr.launched_at_ts) ASC
-    `
-
-    const availableYearRows = await sql<{ launchYear: number }[]>`
+    `,
+        sql<{ launchYear: number }[]>`
       SELECT DISTINCT
         EXTRACT(YEAR FROM cr.launched_at_ts)::int AS "launchYear"
       FROM subset_memberships sm
@@ -570,9 +623,8 @@ export async function getDashboardOverview(
       ${baseWhereWithoutYearAndTaxonomyFilter}
       AND cr.launched_at_ts IS NOT NULL
       ORDER BY "launchYear" ASC
-    `
-
-    const outcomes = await sql<DashboardOutcomeRow[]>`
+    `,
+        sql<DashboardOutcomeRow[]>`
       SELECT
         cn.normalized_status AS "outcome",
         COUNT(*)::int AS "campaignCount",
@@ -591,13 +643,8 @@ export async function getDashboardOverview(
       AND cn.normalized_status IN ('successful', 'unsuccessful')
       GROUP BY cn.normalized_status
       ORDER BY cn.normalized_status ASC
-    `
-
-    const candidateLimit =
-      searchTerms.length > 0 && filters.sortBy === 'recommended'
-        ? 4000
-        : cardLimitValue
-    const campaignCandidates = await sql<DashboardCampaignCandidate[]>`
+    `,
+        sql<DashboardCampaignCandidate[]>`
       SELECT
         cr.id AS "campaignId",
         cr.project_name AS "projectName",
@@ -671,7 +718,8 @@ export async function getDashboardOverview(
       ORDER BY ${sql.unsafe(cardOrderBy)}
       LIMIT ${candidateLimit}
       OFFSET ${searchTerms.length > 0 && filters.sortBy === 'recommended' ? 0 : cardOffsetValue}
-    `
+    `,
+      ])
 
     const rankedCandidates = rankResearchCandidates(campaignCandidates, {
       idea: filters.search,

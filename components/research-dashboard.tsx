@@ -8,6 +8,7 @@ import {
   type DashboardTaxonomyRow,
   type DashboardTrendRow,
   getDashboardOverview,
+  getDashboardStartState,
 } from '@/lib/dashboard'
 import type { UserEntitlements } from '@/lib/auth'
 import { SaveCampaignButton, SaveResearchViewButton } from '@/components/saved-research'
@@ -453,7 +454,18 @@ export default async function ResearchDashboard({
   startMode?: boolean
   entitlements: UserEntitlements
 }) {
-  const data = await getDashboardOverview(filters)
+  // Computed from the raw filters/compareIds props (not from fetched data),
+  // so this can gate which fetch to run rather than just which UI to show.
+  const hasUserSelection = Boolean(
+    filters.search || filters.categoryParent || filters.categorySlug || filters.taxonomyLabel || filters.durationBucket ||
+    filters.rawState || filters.minGoal || filters.minPledged || filters.years || filters.launchWindow ||
+    filters.minimumBackers || filters.includeFailures === 'false' || filters.fullyResearchableOnly === 'true' ||
+    filters.view === 'analysis' || compareIds.length,
+  )
+  const data =
+    startMode && !hasUserSelection
+      ? await getDashboardStartState(filters)
+      : await getDashboardOverview(filters)
   const savableFilters = Object.fromEntries(
     Object.entries(data.filters).filter(([, value]) => value !== ''),
   ) as Record<string, string>
@@ -535,12 +547,6 @@ export default async function ResearchDashboard({
   const activeView = data.filters.view === 'analysis' ? 'analysis' : 'campaigns'
   const compareQueryValue = compareIds.length ? compareIds.join(',') : undefined
   const compareSelectionLimit = entitlements.compareSelectionLimit
-  const hasUserSelection = Boolean(
-    filters.search || filters.categoryParent || filters.categorySlug || filters.taxonomyLabel || filters.durationBucket ||
-    filters.rawState || filters.minGoal || filters.minPledged || filters.years || filters.launchWindow ||
-    filters.minimumBackers || filters.includeFailures === 'false' || filters.fullyResearchableOnly === 'true' ||
-    filters.view === 'analysis' || compareIds.length,
-  )
   const showResults = !startMode || hasUserSelection
 
   return (
