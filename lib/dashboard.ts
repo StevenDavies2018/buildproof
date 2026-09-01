@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { getSql, hasDatabaseConfig } from '@/lib/db'
 import {
   RESEARCH_RANKING_VERSION,
@@ -224,10 +225,35 @@ export async function getLatestDatasetSnapshot(): Promise<DatasetSnapshotInfo> {
     return row ?? { snapshotVersion: null, importedAt: null }
   } catch {
     return { snapshotVersion: null, importedAt: null }
-  } finally {
-    await sql.end()
   }
 }
+
+// The available category list doesn't depend on any active filter — it's
+// the full set for the whole dataset, and only changes on a new data
+// import. Caching it separately means most dashboard loads and filter
+// changes skip this query entirely instead of re-running it every time.
+const getCachedCategories = unstable_cache(
+  async (): Promise<DashboardCategoryRow[]> => {
+    if (!hasDatabaseConfig()) return []
+    const sql = getSql()
+    return sql<DashboardCategoryRow[]>`
+      SELECT DISTINCT
+        cr.kickstarter_category_slug AS "categorySlug",
+        MAX(cr.kickstarter_parent_category_name) AS "categoryParent",
+        MAX(cr.kickstarter_category_name) AS "categoryName"
+      FROM subset_memberships sm
+      INNER JOIN campaigns_raw cr ON cr.id = sm.campaign_id
+      WHERE
+        sm.subset_key = ${ACTIVE_DATASET_SCOPE}
+        AND sm.membership_status <> 'exclude'
+        AND cr.kickstarter_category_slug IS NOT NULL
+      GROUP BY cr.kickstarter_category_slug
+      ORDER BY MAX(cr.kickstarter_parent_category_name) ASC, MAX(cr.kickstarter_category_name) ASC
+    `
+  },
+  ['dashboard-available-categories'],
+  { revalidate: 3600, tags: ['dashboard-categories'] },
+)
 
 export async function getDashboardOverview(
   inputFilters: DashboardFilters = {},
@@ -446,20 +472,7 @@ export async function getDashboardOverview(
       ${yearFilter}
     `
 
-    const categories = await sql<DashboardCategoryRow[]>`
-      SELECT DISTINCT
-        cr.kickstarter_category_slug AS "categorySlug",
-        MAX(cr.kickstarter_parent_category_name) AS "categoryParent",
-        MAX(cr.kickstarter_category_name) AS "categoryName"
-      FROM subset_memberships sm
-      INNER JOIN campaigns_raw cr ON cr.id = sm.campaign_id
-      WHERE
-        sm.subset_key = ${ACTIVE_DATASET_SCOPE}
-        AND sm.membership_status <> 'exclude'
-        AND cr.kickstarter_category_slug IS NOT NULL
-      GROUP BY cr.kickstarter_category_slug
-      ORDER BY MAX(cr.kickstarter_parent_category_name) ASC, MAX(cr.kickstarter_category_name) ASC
-    `
+    const categories = await getCachedCategories()
 
     const [summaryRow] = await sql<DashboardSummary[]>`
       SELECT
@@ -726,7 +739,5 @@ export async function getDashboardOverview(
       rankingVersion: RESEARCH_RANKING_VERSION,
       queryTerms: tokenizeResearchIdea(filters.search),
     }
-  } finally {
-    await sql.end()
   }
 }

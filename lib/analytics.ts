@@ -34,19 +34,15 @@ export async function recordAnalyticsEvent(input: {
 }) {
   if (!hasDatabaseConfig()) return
   const sql = getSql()
-  try {
-    await sql`
-      INSERT INTO app_analytics_events (user_id, event_name, surface, metadata_json)
-      VALUES (
-        ${input.userId ?? null},
-        ${input.eventName},
-        ${input.surface},
-        ${JSON.stringify(input.metadata ?? {})}::jsonb
-      )
-    `
-  } finally {
-    await sql.end()
-  }
+  await sql`
+    INSERT INTO app_analytics_events (user_id, event_name, surface, metadata_json)
+    VALUES (
+      ${input.userId ?? null},
+      ${input.eventName},
+      ${input.surface},
+      ${JSON.stringify(input.metadata ?? {})}::jsonb
+    )
+  `
 }
 
 export type AdminUsageUserRow = {
@@ -82,8 +78,7 @@ export async function getAdminUsageOverview(): Promise<AdminUsageOverview> {
   }
 
   const sql = getSql()
-  try {
-    const rows = await sql<AdminUsageUserRow[]>`
+  const rows = await sql<AdminUsageUserRow[]>`
       WITH event_counts AS (
         SELECT
           user_id,
@@ -131,11 +126,8 @@ export async function getAdminUsageOverview(): Promise<AdminUsageOverview> {
       ORDER BY u.created_at DESC, u.id DESC
     `
 
-    return {
-      configured: true,
-      rows,
-    }
-  } finally {
-    await sql.end()
+  return {
+    configured: true,
+    rows,
   }
 }

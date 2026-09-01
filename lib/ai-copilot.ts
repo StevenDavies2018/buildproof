@@ -48,38 +48,30 @@ export type SavedResearchRow = {
 export async function fetchSavedResearchRowsForUser(userId: number): Promise<SavedResearchRow[]> {
   if (!hasDatabaseConfig()) return []
   const sql = getSql()
-  try {
-    return await sql<SavedResearchRow[]>`
-      SELECT
-        item_key AS "itemKey", item_type AS "itemType", label, href,
-        payload_json AS payload, snapshot_version AS "snapshotVersion",
-        note, saved_at AS "savedAt"
-      FROM saved_research_items
-      WHERE user_id = ${userId}
-      ORDER BY saved_at DESC
-    `
-  } finally {
-    await sql.end()
-  }
+  return sql<SavedResearchRow[]>`
+    SELECT
+      item_key AS "itemKey", item_type AS "itemType", label, href,
+      payload_json AS payload, snapshot_version AS "snapshotVersion",
+      note, saved_at AS "savedAt"
+    FROM saved_research_items
+    WHERE user_id = ${userId}
+    ORDER BY saved_at DESC
+  `
 }
 
 async function fetchSavedResearchRow(userId: number, itemKey: string): Promise<SavedResearchRow | null> {
   if (!hasDatabaseConfig()) return null
   const sql = getSql()
-  try {
-    const [row] = await sql<SavedResearchRow[]>`
-      SELECT
-        item_key AS "itemKey", item_type AS "itemType", label, href,
-        payload_json AS payload, snapshot_version AS "snapshotVersion",
-        note, saved_at AS "savedAt"
-      FROM saved_research_items
-      WHERE user_id = ${userId} AND item_key = ${itemKey}
-      LIMIT 1
-    `
-    return row ?? null
-  } finally {
-    await sql.end()
-  }
+  const [row] = await sql<SavedResearchRow[]>`
+    SELECT
+      item_key AS "itemKey", item_type AS "itemType", label, href,
+      payload_json AS payload, snapshot_version AS "snapshotVersion",
+      note, saved_at AS "savedAt"
+    FROM saved_research_items
+    WHERE user_id = ${userId} AND item_key = ${itemKey}
+    LIMIT 1
+  `
+  return row ?? null
 }
 
 function money(value: string | number | null) {

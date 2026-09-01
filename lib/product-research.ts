@@ -148,8 +148,7 @@ export async function researchProductConcept(
 
   const sql = getSql()
 
-  try {
-    const searchPatterns = buildSearchPatterns(searchTerms)
+  const searchPatterns = buildSearchPatterns(searchTerms)
     const excludePatterns = buildSearchPatterns(normalizedExcludeTerms)
     const lookbackStart = new Date()
     lookbackStart.setUTCFullYear(lookbackStart.getUTCFullYear() - LOOKBACK_YEARS)
@@ -305,7 +304,4 @@ export async function researchProductConcept(
       topSuccessfulCampaigns,
       topUnsuccessfulCampaigns,
     }
-  } finally {
-    await sql.end()
-  }
 }

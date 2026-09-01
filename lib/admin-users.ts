@@ -81,8 +81,7 @@ export async function getAdminUsersOverview(): Promise<AdminUsersOverview> {
 
   const sql = getSql()
 
-  try {
-    const [summary] = await sql<AdminUserSummary[]>`
+  const [summary] = await sql<AdminUserSummary[]>`
       SELECT
         COUNT(*)::int AS "totalUsers",
         COUNT(*) FILTER (WHERE role = 'admin')::int AS "adminUsers",
@@ -98,7 +97,7 @@ export async function getAdminUsersOverview(): Promise<AdminUsersOverview> {
       FROM app_users
     `
 
-    const users = await sql<AdminUserRow[]>`
+  const users = await sql<AdminUserRow[]>`
       WITH saved_counts AS (
         SELECT
           user_id,
@@ -183,10 +182,7 @@ export async function getAdminUsersOverview(): Promise<AdminUsersOverview> {
       ORDER BY u.created_at DESC, u.id DESC
     `
 
-    return { configured: true, summary, users }
-  } finally {
-    await sql.end()
-  }
+  return { configured: true, summary, users }
 }
 
 export async function createManagedAccount(input: {
@@ -216,36 +212,32 @@ export async function createManagedAccount(input: {
   const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
 
   const sql = getSql()
-  try {
-    await sql`
-      INSERT INTO app_users (
-        email,
-        display_name,
-        password_hash,
-        role,
-        account_type,
-        trial_ends_at,
-        email_verified_at,
-        terms_accepted_at,
-        privacy_accepted_at,
-        legal_disclaimer_acknowledged_at
-      )
-      VALUES (
-        ${email},
-        ${displayName},
-        ${hashPassword(password)},
-        ${input.role},
-        ${input.accountType},
-        ${trialEndsAt},
-        ${verifiedAt},
-        CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP
-      )
-    `
-  } finally {
-    await sql.end()
-  }
+  await sql`
+    INSERT INTO app_users (
+      email,
+      display_name,
+      password_hash,
+      role,
+      account_type,
+      trial_ends_at,
+      email_verified_at,
+      terms_accepted_at,
+      privacy_accepted_at,
+      legal_disclaimer_acknowledged_at
+    )
+    VALUES (
+      ${email},
+      ${displayName},
+      ${hashPassword(password)},
+      ${input.role},
+      ${input.accountType},
+      ${trialEndsAt},
+      ${verifiedAt},
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    )
+  `
 }
 
 export async function updateManagedAccount(input: {
@@ -270,41 +262,37 @@ export async function updateManagedAccount(input: {
   if (Number.isNaN(trialEndsAt.getTime())) throw new Error('Enter a valid trial end date')
 
   const sql = getSql()
-  try {
-    if (input.userId === input.currentAdminUserId && input.role !== 'admin') {
-      throw new Error('You cannot remove your own admin access')
-    }
-
-    if (input.role !== 'admin') {
-      const [admins] = await sql<{ count: number }[]>`
-        SELECT COUNT(*)::int AS count FROM app_users WHERE role = 'admin'
-      `
-      const [target] = await sql<{ role: 'user' | 'admin' }[]>`
-        SELECT role FROM app_users WHERE id = ${input.userId} LIMIT 1
-      `
-      if (target?.role === 'admin' && admins.count <= 1) {
-        throw new Error('At least one admin account must remain')
-      }
-    }
-
-    await sql`
-      UPDATE app_users
-      SET
-        email = ${email},
-        display_name = ${displayName},
-        role = ${input.role},
-        account_type = ${input.accountType},
-        trial_ends_at = ${trialEndsAt},
-        email_verified_at = CASE
-          WHEN ${input.emailVerified} THEN COALESCE(email_verified_at, CURRENT_TIMESTAMP)
-          ELSE NULL
-        END,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${input.userId}
-    `
-  } finally {
-    await sql.end()
+  if (input.userId === input.currentAdminUserId && input.role !== 'admin') {
+    throw new Error('You cannot remove your own admin access')
   }
+
+  if (input.role !== 'admin') {
+    const [admins] = await sql<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count FROM app_users WHERE role = 'admin'
+    `
+    const [target] = await sql<{ role: 'user' | 'admin' }[]>`
+      SELECT role FROM app_users WHERE id = ${input.userId} LIMIT 1
+    `
+    if (target?.role === 'admin' && admins.count <= 1) {
+      throw new Error('At least one admin account must remain')
+    }
+  }
+
+  await sql`
+    UPDATE app_users
+    SET
+      email = ${email},
+      display_name = ${displayName},
+      role = ${input.role},
+      account_type = ${input.accountType},
+      trial_ends_at = ${trialEndsAt},
+      email_verified_at = CASE
+        WHEN ${input.emailVerified} THEN COALESCE(email_verified_at, CURRENT_TIMESTAMP)
+        ELSE NULL
+      END,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${input.userId}
+  `
 }
 
 export async function updateManagedAccountPassword(input: {
@@ -316,21 +304,17 @@ export async function updateManagedAccountPassword(input: {
   if (input.password.length < 8) throw new Error('Password must be at least 8 characters')
 
   const sql = getSql()
-  try {
-    // Invalidate existing sessions so a compromised or shared account doesn't
-    // stay signed in past a deliberate password change — same rationale as a
-    // self-service password reset.
-    await sql.begin(async (transaction) => {
-      await transaction`
-        UPDATE app_users
-        SET password_hash = ${hashPassword(input.password)}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${input.userId}
-      `
-      await transaction`DELETE FROM app_sessions WHERE user_id = ${input.userId}`
-    })
-  } finally {
-    await sql.end()
-  }
+  // Invalidate existing sessions so a compromised or shared account doesn't
+  // stay signed in past a deliberate password change — same rationale as a
+  // self-service password reset.
+  await sql.begin(async (transaction) => {
+    await transaction`
+      UPDATE app_users
+      SET password_hash = ${hashPassword(input.password)}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${input.userId}
+    `
+    await transaction`DELETE FROM app_sessions WHERE user_id = ${input.userId}`
+  })
 }
 
 export async function revokeManagedAccountSessions(input: { userId: number }) {
@@ -338,11 +322,7 @@ export async function revokeManagedAccountSessions(input: { userId: number }) {
   if (!input.userId) throw new Error('Missing account id')
 
   const sql = getSql()
-  try {
-    await sql`DELETE FROM app_sessions WHERE user_id = ${input.userId}`
-  } finally {
-    await sql.end()
-  }
+  await sql`DELETE FROM app_sessions WHERE user_id = ${input.userId}`
 }
 
 export async function deleteManagedAccount(input: {
@@ -356,22 +336,18 @@ export async function deleteManagedAccount(input: {
   }
 
   const sql = getSql()
-  try {
-    const [target] = await sql<{ role: 'user' | 'admin' }[]>`
-      SELECT role FROM app_users WHERE id = ${input.userId} LIMIT 1
+  const [target] = await sql<{ role: 'user' | 'admin' }[]>`
+    SELECT role FROM app_users WHERE id = ${input.userId} LIMIT 1
+  `
+  if (!target) throw new Error('Account not found')
+  if (target.role === 'admin') {
+    const [admins] = await sql<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count FROM app_users WHERE role = 'admin'
     `
-    if (!target) throw new Error('Account not found')
-    if (target.role === 'admin') {
-      const [admins] = await sql<{ count: number }[]>`
-        SELECT COUNT(*)::int AS count FROM app_users WHERE role = 'admin'
-      `
-      if (admins.count <= 1) {
-        throw new Error('At least one admin account must remain')
-      }
+    if (admins.count <= 1) {
+      throw new Error('At least one admin account must remain')
     }
-
-    await sql`DELETE FROM app_users WHERE id = ${input.userId}`
-  } finally {
-    await sql.end()
   }
+
+  await sql`DELETE FROM app_users WHERE id = ${input.userId}`
 }

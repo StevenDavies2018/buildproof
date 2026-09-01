@@ -156,8 +156,7 @@ export async function getResearchBenchmarkReport() {
 
   const sql = getSql()
 
-  try {
-    const candidates = await sql<BenchmarkCandidate[]>`
+  const candidates = await sql<BenchmarkCandidate[]>`
       WITH latest_memberships AS (
         SELECT DISTINCT ON (sm.campaign_id)
           sm.campaign_id,
@@ -207,7 +206,4 @@ export async function getResearchBenchmarkReport() {
         evaluateResearchBenchmark(benchmark, candidates),
       ),
     }
-  } finally {
-    await sql.end()
-  }
 }

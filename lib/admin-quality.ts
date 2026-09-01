@@ -87,8 +87,7 @@ export async function getAdminQualityOverview() {
 
   const sql = getSql()
 
-  try {
-    const [summary] = await sql<AdminQualitySummary[]>`
+  const [summary] = await sql<AdminQualitySummary[]>`
       WITH latest_memberships AS (
         SELECT DISTINCT ON (sm.campaign_id)
           sm.campaign_id,
@@ -265,15 +264,12 @@ export async function getAdminQualityOverview() {
         (SELECT calculated_at::text FROM analysis_category_metrics ORDER BY calculated_at DESC LIMIT 1) AS "analysisCalculatedAt"
     `
 
-    return {
-      configured: true,
-      summary: summary ?? EMPTY_SUMMARY,
-      normalizationBreakdown,
-      statusBreakdown,
-      issueRows,
-      versions,
-    }
-  } finally {
-    await sql.end()
+  return {
+    configured: true,
+    summary: summary ?? EMPTY_SUMMARY,
+    normalizationBreakdown,
+    statusBreakdown,
+    issueRows,
+    versions,
   }
 }

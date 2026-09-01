@@ -87,8 +87,7 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
 
   const sql = getSql()
 
-  try {
-    const summary = await sql<AdminSubsetSummary[]>`
+  const summary = await sql<AdminSubsetSummary[]>`
       SELECT
         sm.subset_key AS "subsetKey",
         sm.subset_version AS "subsetVersion",
@@ -224,7 +223,4 @@ export async function getAdminSubsetOverview(filters: AdminSubsetFilters = {}) {
         sortDir,
       },
     }
-  } finally {
-    await sql.end()
-  }
 }

@@ -79,11 +79,10 @@ async function runGoalSizeQuery(
   inputFilters: DashboardFilters,
 ) {
   const sql = getSql()
-  try {
-    // Ignore any incoming minGoal floor filter here specifically — otherwise
-    // a user-set minimum would silently collapse the lower buckets to zero
-    // instead of showing the real distribution across all of them.
-    const { filteredCampaigns } = buildFilteredCampaignsCte(sql, metricWindow, inputFilters, { ignoreMinGoal: true })
+  // Ignore any incoming minGoal floor filter here specifically — otherwise
+  // a user-set minimum would silently collapse the lower buckets to zero
+  // instead of showing the real distribution across all of them.
+  const { filteredCampaigns } = buildFilteredCampaignsCte(sql, metricWindow, inputFilters, { ignoreMinGoal: true })
 
     const rows = await sql<OutcomeBucketRow[]>`
       ${filteredCampaigns}
@@ -124,9 +123,6 @@ async function runGoalSizeQuery(
     `
 
     return rows.map((row) => mapRow(row, GOAL_BUCKET_LABELS))
-  } finally {
-    await sql.end()
-  }
 }
 
 async function runDurationQuery(
@@ -134,13 +130,12 @@ async function runDurationQuery(
   inputFilters: DashboardFilters,
 ) {
   const sql = getSql()
-  try {
-    // Ignore any incoming durationBucket filter here specifically, for the
-    // same reason minGoal is ignored above — this view exists to show all
-    // duration buckets side by side, not whichever one is already selected.
-    const { filteredCampaigns } = buildFilteredCampaignsCte(sql, metricWindow, inputFilters, {
-      ignoreDurationBucket: true,
-    })
+  // Ignore any incoming durationBucket filter here specifically, for the
+  // same reason minGoal is ignored above — this view exists to show all
+  // duration buckets side by side, not whichever one is already selected.
+  const { filteredCampaigns } = buildFilteredCampaignsCte(sql, metricWindow, inputFilters, {
+    ignoreDurationBucket: true,
+  })
 
     const rows = await sql<OutcomeBucketRow[]>`
       ${filteredCampaigns}
@@ -178,9 +173,6 @@ async function runDurationQuery(
     `
 
     return rows.map((row) => mapRow(row, DURATION_BUCKET_LABELS))
-  } finally {
-    await sql.end()
-  }
 }
 
 export async function getGoalSizeAnalysisMetrics(

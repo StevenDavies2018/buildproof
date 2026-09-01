@@ -20,24 +20,20 @@ async function getClientIp() {
 async function checkRateLimit(bucket: string, maxAttempts: number, windowMinutes: number) {
   if (!hasDatabaseConfig()) return true
   const sql = getSql()
-  try {
-    const [{ count }] = await sql<{ count: number }[]>`
-      SELECT COUNT(*)::int AS count
-      FROM auth_rate_limit_events
-      WHERE bucket = ${bucket}
-        AND occurred_at > CURRENT_TIMESTAMP - (${windowMinutes} || ' minutes')::interval
-    `
-    if (count >= maxAttempts) return false
-    await sql`INSERT INTO auth_rate_limit_events (bucket) VALUES (${bucket})`
-    // Opportunistic cleanup instead of on every call — keeps the table small
-    // without an extra DELETE round-trip on the hot path.
-    if (Math.random() < 0.05) {
-      await sql`DELETE FROM auth_rate_limit_events WHERE occurred_at < CURRENT_TIMESTAMP - INTERVAL '1 day'`
-    }
-    return true
-  } finally {
-    await sql.end()
+  const [{ count }] = await sql<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count
+    FROM auth_rate_limit_events
+    WHERE bucket = ${bucket}
+      AND occurred_at > CURRENT_TIMESTAMP - (${windowMinutes} || ' minutes')::interval
+  `
+  if (count >= maxAttempts) return false
+  await sql`INSERT INTO auth_rate_limit_events (bucket) VALUES (${bucket})`
+  // Opportunistic cleanup instead of on every call — keeps the table small
+  // without an extra DELETE round-trip on the hot path.
+  if (Math.random() < 0.05) {
+    await sql`DELETE FROM auth_rate_limit_events WHERE occurred_at < CURRENT_TIMESTAMP - INTERVAL '1 day'`
   }
+  return true
 }
 
 export type AuthUser = {
@@ -558,27 +554,23 @@ export async function requireAiCopilotAccess() {
 export async function setAiCopilotEnabled(userId: number, enabled: boolean) {
   if (!hasDatabaseConfig()) throw new Error('Database is not configured')
   const sql = getSql()
-  try {
-    if (enabled) {
-      // Only stamp the acknowledgment date the first time it's turned on —
-      // later on/off toggling shouldn't overwrite the original consent date.
-      await sql`
-        UPDATE app_users
-        SET
-          ai_copilot_enabled = true,
-          ai_copilot_enabled_at = COALESCE(ai_copilot_enabled_at, CURRENT_TIMESTAMP),
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${userId}
-      `
-    } else {
-      await sql`
-        UPDATE app_users
-        SET ai_copilot_enabled = false, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${userId}
-      `
-    }
-  } finally {
-    await sql.end()
+  if (enabled) {
+    // Only stamp the acknowledgment date the first time it's turned on —
+    // later on/off toggling shouldn't overwrite the original consent date.
+    await sql`
+      UPDATE app_users
+      SET
+        ai_copilot_enabled = true,
+        ai_copilot_enabled_at = COALESCE(ai_copilot_enabled_at, CURRENT_TIMESTAMP),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${userId}
+    `
+  } else {
+    await sql`
+      UPDATE app_users
+      SET ai_copilot_enabled = false, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${userId}
+    `
   }
 }
 

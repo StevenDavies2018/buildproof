@@ -221,13 +221,9 @@ export async function getCampaignDetail(campaignId: number) {
 
   const sql = getSql()
 
-  try {
-    const rows = await sql.unsafe(`${DETAIL_SELECT} WHERE cr.id = $1 LIMIT 1`, [campaignId]) as CampaignDetailRow[]
-    const row = rows[0]
-    return row ? mapCampaignDetailRow(row) : null
-  } finally {
-    await sql.end()
-  }
+  const rows = await sql.unsafe(`${DETAIL_SELECT} WHERE cr.id = $1 LIMIT 1`, [campaignId]) as CampaignDetailRow[]
+  const row = rows[0]
+  return row ? mapCampaignDetailRow(row) : null
 }
 
 export async function getCompareCampaigns(campaignIds: number[]) {
@@ -237,23 +233,19 @@ export async function getCompareCampaigns(campaignIds: number[]) {
 
   const sql = getSql()
 
-  try {
-    const placeholders = campaignIds.map((_, index) => `$${index + 1}`).join(', ')
-    const rows = await sql.unsafe(
-      `${DETAIL_SELECT} WHERE cr.id IN (${placeholders})`,
-      campaignIds,
-    ) as CampaignDetailRow[]
+  const placeholders = campaignIds.map((_, index) => `$${index + 1}`).join(', ')
+  const rows = await sql.unsafe(
+    `${DETAIL_SELECT} WHERE cr.id IN (${placeholders})`,
+    campaignIds,
+  ) as CampaignDetailRow[]
 
-    const byId = new Map(
-      rows.map((row) => {
-        const campaign = mapCampaignDetailRow(row)
-        return [campaign.campaignId, campaign]
-      }),
-    )
-    return campaignIds
-      .map((id) => byId.get(id))
-      .filter((campaign): campaign is CompareCampaign => Boolean(campaign))
-  } finally {
-    await sql.end()
-  }
+  const byId = new Map(
+    rows.map((row) => {
+      const campaign = mapCampaignDetailRow(row)
+      return [campaign.campaignId, campaign]
+    }),
+  )
+  return campaignIds
+    .map((id) => byId.get(id))
+    .filter((campaign): campaign is CompareCampaign => Boolean(campaign))
 }

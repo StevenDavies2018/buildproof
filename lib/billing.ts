@@ -82,14 +82,10 @@ async function getOrCreatePortalConfigurationId(): Promise<string> {
 
 async function getStripeCustomerId(userId: number): Promise<string | null> {
   const sql = getSql()
-  try {
-    const [row] = await sql<{ stripeCustomerId: string | null }[]>`
-      SELECT stripe_customer_id AS "stripeCustomerId" FROM app_users WHERE id = ${userId} LIMIT 1
-    `
-    return row?.stripeCustomerId ?? null
-  } finally {
-    await sql.end()
-  }
+  const [row] = await sql<{ stripeCustomerId: string | null }[]>`
+    SELECT stripe_customer_id AS "stripeCustomerId" FROM app_users WHERE id = ${userId} LIMIT 1
+  `
+  return row?.stripeCustomerId ?? null
 }
 
 // Re-fetches the subscription directly from Stripe and re-applies it. This
@@ -100,15 +96,10 @@ export async function syncSubscriptionFromStripe(userId: number) {
   if (!hasStripeConfig()) throw new Error('Billing is not configured')
 
   const sql = getSql()
-  let subscriptionId: string | null
-  try {
-    const [row] = await sql<{ stripeSubscriptionId: string | null }[]>`
-      SELECT stripe_subscription_id AS "stripeSubscriptionId" FROM app_users WHERE id = ${userId} LIMIT 1
-    `
-    subscriptionId = row?.stripeSubscriptionId ?? null
-  } finally {
-    await sql.end()
-  }
+  const [row] = await sql<{ stripeSubscriptionId: string | null }[]>`
+    SELECT stripe_subscription_id AS "stripeSubscriptionId" FROM app_users WHERE id = ${userId} LIMIT 1
+  `
+  const subscriptionId = row?.stripeSubscriptionId ?? null
 
   if (!subscriptionId) throw new Error('No subscription on file to sync yet')
 
@@ -141,48 +132,44 @@ export async function applySubscriptionState(input: {
   currentPeriodEnd: Date | null
 }) {
   const sql = getSql()
-  try {
-    // A subscription set to cancel_at_period_end keeps `status: 'active'`
-    // right up until the period actually ends (Stripe flips the status only
-    // then), so gating on `status` alone already keeps the user's paid
-    // access through what they paid for — no separate "still valid until"
-    // branch is needed here, just persist the flag/date for UI messaging.
-    if (isActiveStatus(input.status)) {
-      await sql`
-        UPDATE app_users
-        SET
-          account_type = 'paid',
-          stripe_customer_id = ${input.customerId},
-          stripe_subscription_id = ${input.subscriptionId},
-          stripe_subscription_status = ${input.status},
-          stripe_cancel_at_period_end = ${input.cancelAtPeriodEnd},
-          stripe_current_period_end = ${input.currentPeriodEnd},
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${input.userId}
-      `
-      return
-    }
-
-    // Subscription period actually ended, or payment failed permanently:
-    // fall back to free with an already-expired trial rather than deleting
-    // access history, so getUserEntitlements() treats the account as
-    // read-only free. No refund or proration credit is issued.
+  // A subscription set to cancel_at_period_end keeps `status: 'active'`
+  // right up until the period actually ends (Stripe flips the status only
+  // then), so gating on `status` alone already keeps the user's paid
+  // access through what they paid for — no separate "still valid until"
+  // branch is needed here, just persist the flag/date for UI messaging.
+  if (isActiveStatus(input.status)) {
     await sql`
       UPDATE app_users
       SET
-        account_type = 'free',
-        trial_ends_at = LEAST(trial_ends_at, CURRENT_TIMESTAMP),
+        account_type = 'paid',
         stripe_customer_id = ${input.customerId},
         stripe_subscription_id = ${input.subscriptionId},
         stripe_subscription_status = ${input.status},
-        stripe_cancel_at_period_end = false,
+        stripe_cancel_at_period_end = ${input.cancelAtPeriodEnd},
         stripe_current_period_end = ${input.currentPeriodEnd},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${input.userId}
     `
-  } finally {
-    await sql.end()
+    return
   }
+
+  // Subscription period actually ended, or payment failed permanently:
+  // fall back to free with an already-expired trial rather than deleting
+  // access history, so getUserEntitlements() treats the account as
+  // read-only free. No refund or proration credit is issued.
+  await sql`
+    UPDATE app_users
+    SET
+      account_type = 'free',
+      trial_ends_at = LEAST(trial_ends_at, CURRENT_TIMESTAMP),
+      stripe_customer_id = ${input.customerId},
+      stripe_subscription_id = ${input.subscriptionId},
+      stripe_subscription_status = ${input.status},
+      stripe_cancel_at_period_end = false,
+      stripe_current_period_end = ${input.currentPeriodEnd},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${input.userId}
+  `
 }
 
 export async function getSubscriptionAccessInfo(userId: number): Promise<{
@@ -190,32 +177,24 @@ export async function getSubscriptionAccessInfo(userId: number): Promise<{
   currentPeriodEnd: string | null
 }> {
   const sql = getSql()
-  try {
-    const [row] = await sql<{ cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null }[]>`
-      SELECT
-        stripe_cancel_at_period_end AS "cancelAtPeriodEnd",
-        stripe_current_period_end AS "currentPeriodEnd"
-      FROM app_users
-      WHERE id = ${userId}
-      LIMIT 1
-    `
-    return {
-      cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
-      currentPeriodEnd: row?.currentPeriodEnd ?? null,
-    }
-  } finally {
-    await sql.end()
+  const [row] = await sql<{ cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null }[]>`
+    SELECT
+      stripe_cancel_at_period_end AS "cancelAtPeriodEnd",
+      stripe_current_period_end AS "currentPeriodEnd"
+    FROM app_users
+    WHERE id = ${userId}
+    LIMIT 1
+  `
+  return {
+    cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
+    currentPeriodEnd: row?.currentPeriodEnd ?? null,
   }
 }
 
 export async function findUserIdByStripeCustomerId(customerId: string): Promise<number | null> {
   const sql = getSql()
-  try {
-    const [row] = await sql<{ id: number }[]>`
-      SELECT id FROM app_users WHERE stripe_customer_id = ${customerId} LIMIT 1
-    `
-    return row?.id ?? null
-  } finally {
-    await sql.end()
-  }
+  const [row] = await sql<{ id: number }[]>`
+    SELECT id FROM app_users WHERE stripe_customer_id = ${customerId} LIMIT 1
+  `
+  return row?.id ?? null
 }

@@ -41,10 +41,9 @@ export async function getSchemaStatus(): Promise<{
 
   const sql = getSql()
 
-  try {
-    const rows = await sql<{
-      table_name: string
-    }[]>`
+  const rows = await sql<{
+    table_name: string
+  }[]>`
       SELECT table_name
       FROM information_schema.tables
       WHERE table_schema = 'public'
@@ -110,14 +109,11 @@ export async function getSchemaStatus(): Promise<{
       }
     }
 
-    return {
-      ready: tables.every((table) => table.exists),
-      configured: true,
-      summary,
-      tables,
-    }
-  } finally {
-    await sql.end()
+  return {
+    ready: tables.every((table) => table.exists),
+    configured: true,
+    summary,
+    tables,
   }
 }
 
@@ -128,11 +124,7 @@ export async function bootstrapCoreSchema() {
 
   const sql = getSql()
 
-  try {
-    for (const table of CORE_TABLES) {
-      await sql.unsafe(table.ddl)
-    }
-  } finally {
-    await sql.end()
+  for (const table of CORE_TABLES) {
+    await sql.unsafe(table.ddl)
   }
 }

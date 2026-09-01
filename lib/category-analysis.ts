@@ -475,8 +475,7 @@ async function queryCategoryAnalysisMetrics(
 ) {
   const sql = getSql()
 
-  try {
-    const { filteredCampaigns, effectiveWindowStart } = buildFilteredCampaignsCte(sql, metricWindow, inputFilters)
+  const { filteredCampaigns, effectiveWindowStart } = buildFilteredCampaignsCte(sql, metricWindow, inputFilters)
 
     const metricRows = await sql<CategoryAnalysisMetricRow[]>`
       ${filteredCampaigns}
@@ -596,9 +595,6 @@ async function queryCategoryAnalysisMetrics(
     }
 
     return metricRows.map((row) => mapMetric(row, yearsByDimension.get(row.dimensionKey) ?? []))
-  } finally {
-    await sql.end()
-  }
 }
 
 export async function getCategoryAnalysisMetrics(
