@@ -418,7 +418,10 @@ async function establishSession(userId: number) {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    expires: expiresAt,
+    // No `expires`/`maxAge` — this makes it a browser-session cookie, so
+    // the browser discards it when fully closed (not just the tab). The
+    // DB row's expiresAt (30 days) still bounds the session server-side as
+    // a backstop for anyone whose browser restores cookies on restart.
   })
 }
 
