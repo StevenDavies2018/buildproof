@@ -4,6 +4,7 @@ import Script from 'next/script'
 import localFont from 'next/font/local'
 import AuthChrome from '@/components/auth-chrome'
 import SiteFooter from '@/components/site-footer'
+import { WebVitalsReporter } from '@/components/web-vitals-reporter'
 import { SITE_NAME } from '@/lib/seo'
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-S888QYSB36'
@@ -116,6 +117,7 @@ export default function RootLayout({
         </Suspense>
         {children}
         <SiteFooter />
+        <WebVitalsReporter />
       </body>
     </html>
   )
